@@ -1,0 +1,1 @@
+By default, all of the outputs (logs, model checkpoints, etc.) generated from experiments will be saved to this directory.

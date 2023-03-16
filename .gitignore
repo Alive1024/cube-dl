@@ -1,0 +1,13 @@
+# IDE
+.idea/
+
+# MacOS-Specific
+.DS_Store
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Projects' outputs
+outputs/proj_*
