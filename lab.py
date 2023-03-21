@@ -1,43 +1,9 @@
 import inspect
+import sys
 from collections import OrderedDict
 from typing import Iterable, Callable
-import json
-
-from pytorch_lightning import Trainer
-
-
-class Alice:
-    def __init__(self, a: int, b: int = 42):
-        self.a = a
-        self.b = b
-
-
-class Bob:
-    def __init__(self, d: str, alice: Alice):
-        self.d = d
-        self.alice = alice
-
-
-def inspect_obj(obj):
-    all_init_args: inspect.Signature = inspect.signature(obj.__class__.__init__)
-    # print(all_init_args.parameters.keys())
-
-    d = OrderedDict()
-    for key, value in all_init_args.parameters.items():
-        if key != "self":
-            d[key] = OrderedDict()
-            attr_value = getattr(obj, key)
-
-            if isinstance(attr_value, Iterable):
-                for idx, ele in enumerate(attr_value):
-                    d[key][idx] = {}
-                    d[key][idx]["type"] = str(type(ele))
-                    d[key][idx]["value"] = repr(ele)
-
-            d[key]["type"] = str(type(attr_value))
-            d[key]["value"] = repr(attr_value)
-
-    return d
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import RichProgressBar
 
 
 def inspect_func(func):
@@ -48,18 +14,15 @@ def inspect_func(func):
 def _collect_fn(key, value, dst_dict: OrderedDict):
     #
     if isinstance(value, (bool, int, float, complex, str)):
-        print(1)
         dst_dict[key] = value
 
     #
     elif isinstance(value, dict):
-        print(2)
         dst_dict[key] = OrderedDict()
         for k, v in value.items():
             # dst_dict[key][k] = OrderedDict()
             _collect_fn(k, v, dst_dict[key])
-    elif isinstance(value, Iterable):    # list, tuple, set
-        print(3)
+    elif isinstance(value, Iterable):  # list, tuple, set
         dst_dict[key] = OrderedDict()
         for idx, ele in enumerate(value):
             # dst_dict[key][idx] = OrderedDict()
@@ -75,7 +38,6 @@ def _collect_fn(key, value, dst_dict: OrderedDict):
 
     # object
     else:
-        print(5)
         dst_dict[key] = OrderedDict()
         for k, v in inspect.signature(value.__class__.__init__).parameters.items():
             print(k)
@@ -89,55 +51,67 @@ def _collect_fn(key, value, dst_dict: OrderedDict):
                     pass
 
 
-def collect_hparams(obj):
-    hparams = OrderedDict()
-    _collect_fn("hparams", obj, hparams)
-    print(json.dumps(hparams, indent=4))
+class Alice:
+    def __init__(self, a, b=42):
+        pass
+
+    def __iter__(self):
+        raise NotImplementedError
+
+    def __call__(self, *args, **kwargs):
+        raise NotImplementedError
 
 
-def getter(func: Callable):
-    def target(*args, **kwargs):
-        # Capture the actual arguments passed in
-        print(inspect.getargvalues(inspect.currentframe()))
-        return func(*args, **kwargs)
-    return target
+class Bob:
+    def __init__(self, c, alice):
+        pass
+
+
+def get_trainer_instance():
+    return pl.Trainer(
+        callbacks=[RichProgressBar(leave=True)]
+    )
+
+
+def _collect_trainer_args(frame, event, arg):
+    """
+    Similar to `_collect_task_wrapper_args`.
+    """
+    if event != "return":
+        return
+    if frame.f_back.f_code.co_name not in ("insert_env_defaults", "get_trainer_instance"):
+        return
+
+    # if frame.f_code.co_name != "__init__":
+    #     return
+
+    f_locals = frame.f_locals
+    print(frame.f_code.co_name)
+    print(f_locals)
+    # if "self" in f_locals:
+    #     self._init_local_vars[id(f_locals["self"])] = f_locals
+    #     if type(f_locals["self"]) == pl.Trainer:
+    #         self._parse_frame_locals(f_locals, part="trainer")
+
+
+def func() -> dict:
+    pass
 
 
 if __name__ == '__main__':
-    # all_init_args: inspect.Signature = inspect.signature(Config.__init__)
-
-    ac = Alice(1)
-    bob = Bob(d="hello", alice=ac)
+    # from configs.exp_on_oracle_mnist import get_config_instance
+    # from entities import Run
     #
-    # all_init_args: inspect.Signature = inspect.signature(ac.__class__.__init__)
-    # # print(all_init_args.parameters.keys())
-    # for key, value in all_init_args.parameters.items():
-    #     if key != "self":
-    #         print(key, value, getattr(ac, key))
+    # config_instance = get_config_instance()
+    # config_instance.setup_wrappers()
+    # config_instance.setup_trainer("csv", Run(name="dev", desc="123", proj_id=1, exp_id=1,
+    #                                          job_type="fit",
+    #                                          output_dir="/Users/yihaozuo/Zyh-Coding-Projects/Personal/DL-Template"
+    #                                                     "-Project/outputs"))
 
-    # inspect_func(foo)
-    # trainer = Trainer()
-    # collect_hparams(bob)
+    # for k, v in inspect.signature(pl.Trainer.__init__).parameters.items():
+    #     print(k, v)
 
-    from configs.components.task_wrappers.basic_task_wrapper import get_task_wrapper_instance
-    # from configs.components.data_wrappers.oracle_mnist import get_data_wrapper_instance
-    #
-    # task_wrapper = get_task_wrapper_instance()
-    # # data_wrapper = get_data_wrapper_instance()
-    # # collect_hparams()
-    # # print(inspect_obj(task_wrapper))
-    # print(json.dumps(inspect_obj(task_wrapper), indent=4))
-    # # print(json.dumps(inspect_obj(data_wrapper), indent=4))
-    #
-    # # print(isinstance(task_wrapper, Callable))
-    # collect_hparams(task_wrapper)
-
-    @getter
-    def foo(a=1, b=2):
-        # cur_frame = inspect.currentframe()
-        # print(inspect.getargvalues(cur_frame))
-        print(a, b)
-
-    # foo(a=42)
-
-    get_task_wrapper_instance()
+    sys.setprofile(_collect_trainer_args)
+    trainer = get_trainer_instance()
+    sys.setprofile(None)

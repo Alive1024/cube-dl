@@ -1,6 +1,5 @@
 import os
 import os.path as osp
-import sys
 import argparse
 import importlib
 import re

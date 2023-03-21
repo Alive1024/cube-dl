@@ -1,6 +1,7 @@
 import os
 import os.path as osp
-from typing import Optional, Callable, Union, Iterable, List
+import sys
+from typing import Optional, Callable, Union, Iterable, List, Literal
 import inspect
 import shutil
 import re
@@ -15,36 +16,213 @@ from entities import Run
 
 
 class Config:
+    TASK_WRAPPER_GETTER_NAME = "get_task_wrapper_instance"
+    MODEL_GETTER_NAME = "get_model_instance"
+    DATA_WRAPPER_GETTER_NAME = "get_data_wrapper_instance"
+    TRAINER_GETTER_NAME = "get_trainer_instance"
+
     def __init__(self, *,
                  task_wrapper_getter: Callable[[], pl.LightningModule],
                  data_wrapper_getter: Callable[[], pl.LightningDataModule],
-
                  default_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
-                 tuner: Tuner = None,
                  fit_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
                  validate_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
                  test_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
                  predict_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
+                 tuner: Tuner = None,
                  ):
         if (not default_trainer_getter) and (not fit_trainer_getter) and (not validate_trainer_getter) \
                 and (not test_trainer_getter) and (not predict_trainer_getter):
             raise RuntimeError("The trainer getters can't be all None.")
 
-        self.task_wrapper_getter = task_wrapper_getter
-        self.data_wrapper_getter = data_wrapper_getter
-        self.default_trainer_getter = default_trainer_getter
-        self.tuner = tuner
-        self.fit_trainer_getter = fit_trainer_getter
-        self.validate_trainer_getter = validate_trainer_getter
-        self.test_trainer_getter = test_trainer_getter
-        self.predict_trainer_getter = predict_trainer_getter
+        # ################## Attributes for capturing hparams ##################
+        # These three attributes should be defined before `_check_getter` assigning them
+        self._task_wrapper_cls = None
+        self._data_wrapper_cls = None
+        self._trainer_cls = None
 
+        # A "flat" dict used to temporarily store the produced local variables
+        # during instantiating the task_wrapper, data_wrapper and trainer.
+        # Its keys are the memory addresses of the objects,
+        # while its values are dicts containing the corresponding local variables' names and values.
+        self._init_local_vars = {}
+
+        # A "structured" (nested) dict containing the hparams
+        self._hparams = OrderedDict()
+        self._cur_run_job_type: Literal["fit", "validate", "test", "predict"] = "fit"
+        # ######################################################################
+
+        # ############################### Getters ###############################
+        self._check_getter(task_wrapper_getter, Config.TASK_WRAPPER_GETTER_NAME)
+        self.task_wrapper_getter = task_wrapper_getter
+
+        self._check_getter(data_wrapper_getter, Config.DATA_WRAPPER_GETTER_NAME)
+        self.data_wrapper_getter = data_wrapper_getter
+
+        self._check_getter(default_trainer_getter, Config.TRAINER_GETTER_NAME)
+        self.default_trainer_getter = default_trainer_getter
+
+        self._check_getter(fit_trainer_getter, Config.TRAINER_GETTER_NAME)
+        self.fit_trainer_getter = fit_trainer_getter
+
+        self._check_getter(validate_trainer_getter, Config.TRAINER_GETTER_NAME)
+        self.validate_trainer_getter = validate_trainer_getter
+
+        self._check_getter(test_trainer_getter, Config.TRAINER_GETTER_NAME)
+        self.test_trainer_getter = test_trainer_getter
+
+        self._check_getter(predict_trainer_getter, Config.TRAINER_GETTER_NAME)
+        self.predict_trainer_getter = predict_trainer_getter
+        # ######################################################################
+
+        # ########################## Core Attributes  ##########################
         self.task_wrapper: Optional[pl.LightningModule] = None
         self.data_wrapper: Optional[pl.LightningDataModule] = None
         self.fit_trainer: Optional[pl.Trainer] = None
         self.validate_trainer: Optional[pl.Trainer] = None
         self.test_trainer: Optional[pl.Trainer] = None
         self.predict_trainer: Optional[pl.Trainer] = None
+        self.tuner = tuner
+        # ######################################################################
+
+    def _check_getter(self, getter: Callable, getter_name: str):
+        """
+        Ensure the name of a getter is correct, and its signature contains return type hints.
+        """
+        if getter:
+            if getter.__name__ != getter_name:
+                raise RuntimeError(f"The name of the getter is not correct, which should be \"{getter_name}\", "
+                                   f"rather than \"{getter.__name__}\"")
+            ret_type = inspect.signature(getter).return_annotation
+            if ret_type == inspect.Signature.empty:
+                raise RuntimeError(f"The Return type of the getter {getter_name} should be specified, "
+                                   f"like `def {getter_name}() -> ReturnType:`")
+            else:
+                # Get the class type from the return type hints
+                if getter_name == Config.TASK_WRAPPER_GETTER_NAME:
+                    self._task_wrapper_cls = ret_type
+                elif getter_name == Config.DATA_WRAPPER_GETTER_NAME:
+                    self._data_wrapper_cls = ret_type
+                elif getter_name == Config.TRAINER_GETTER_NAME:
+                    self._trainer_cls = ret_type
+
+    def _collect_task_wrapper_frame_locals(self, frame, event, arg):
+        """
+        The callback function for `sys.setprofile`, used to collect local variables when initializing task wrapper.
+        """
+        # Only caring about the function "return" events
+        if event != "return":
+            return
+        # Use the caller's function name to filter out underlying processes
+        if frame.f_back.f_code.co_name not in (Config.TASK_WRAPPER_GETTER_NAME, Config.MODEL_GETTER_NAME):
+            return
+
+        f_locals = frame.f_locals  # the local variables seen by the current stack frame, a dict
+        if "self" in f_locals:
+            self._init_local_vars[id(f_locals["self"])] = f_locals
+            # The last frame corresponds to the outermost object, i.e. a task wrapper object
+            if type(f_locals["self"]) == self._task_wrapper_cls:
+                self._parse_frame_locals(f_locals, part_key="task_wrapper")
+
+    def _collect_data_wrapper_frame_locals(self, frame, event, arg):
+        """
+        Similar to `_collect_task_wrapper_frame_locals`.
+        """
+        if event != "return":
+            return
+        if frame.f_back.f_code.co_name != Config.DATA_WRAPPER_GETTER_NAME:
+            return
+
+        f_locals = frame.f_locals
+        if "self" in f_locals:
+            self._init_local_vars[id(f_locals["self"])] = f_locals
+            if type(f_locals["self"]) == self._data_wrapper_cls:
+                self._parse_frame_locals(f_locals, part_key="data_wrapper")
+
+    def _collect_trainer_frame_locals(self, frame, event, arg):
+        """
+        Similar to `_collect_task_wrapper_frame_locals`.
+        """
+        if event != "return":
+            return
+        # Filter condition is special for pl.Trainer, as its `__init__` is wrapped by "_defaults_from_env_vars",
+        # which is defined in "pytorch_lightning/utilities/argparse.py".
+        # "insert_env_defaults" is the wrapped function's name of the decorator `_defaults_from_env_vars`.
+        if frame.f_back.f_code.co_name not in ("insert_env_defaults", Config.TRAINER_GETTER_NAME):
+            return
+
+        f_locals = frame.f_locals
+        if "self" in f_locals:
+            self._init_local_vars[id(f_locals["self"])] = f_locals
+            # When `insert_env_defaults` or pl.Trainer's `__init__` returns,
+            # the type of "self" are both `self._trainer_cls`, but only the frame
+            # corresponding to `__init__` contains the actual local variables we want.
+            # Hence, there are two conditions needed to be met.
+            if type(f_locals["self"]) == self._trainer_cls and frame.f_code.co_name == "__init__":
+                self._parse_frame_locals(f_locals, part_key=self._cur_run_job_type + "_trainer")
+
+    def _parse_frame_locals(self, locals_dict: dict,
+                            part_key: Literal["task_wrapper", "data_wrapper",
+                                              "fit_trainer", "validate_trainer", "test_trainer", "predict_trainer"]):
+        """
+
+        """
+        def _parse_fn(key, value, dst: Union[OrderedDict, List], exclusive_keys: Iterable = ("self",)):
+            # Get rid of specific key(s), "self" must be excluded, otherwise infinite recurse will happen.
+            if key in exclusive_keys:
+                return
+
+            # Atomic data types
+            if value is None:
+                dst[key] = None
+            elif isinstance(value, (bool, int, float, complex, str)):
+                dst[key] = value
+
+            # Iterable data types,
+            elif isinstance(value, dict):
+                for k, v in value.items():
+                    _parse_fn(k, v, dst)
+            elif isinstance(value, Iterable):  # list, tuple, set
+                dst[key] = OrderedDict()
+                # Some class may override `__iter__` method (which means it is `Iterable`),
+                # but do not really implement it, only raise a NotImplementedError when trying to enumerate it.
+                try:
+                    for idx, v in enumerate(value):
+                        _parse_fn(idx, v, dst[key])
+                except NotImplementedError:
+                    if id(value) in self._init_local_vars:
+                        dst[key] = OrderedDict({
+                            "type": str(value.__class__),  # class type
+                            "spec_args": OrderedDict()
+                        })
+                        _parse_fn(key, self._init_local_vars[id(value)], dst[key]["spec_args"])
+
+            # Callable ? (Classes implemented __call__ also belongs to Callable)
+            # General objects
+            else:
+                if id(value) in self._init_local_vars:
+                    dst[key] = OrderedDict({
+                        "type": str(value.__class__),  # class type
+                        "spec_args": OrderedDict()
+                    })
+                    _parse_fn(key, self._init_local_vars[id(value)], dst[key]["spec_args"])
+
+        # Delete those local variables which are not the args of `__init__`
+        for local_vars in self._init_local_vars.values():
+            init_param_names = inspect.signature(local_vars["self"].__class__.__init__).parameters.keys()
+            useless_var_names = set(local_vars.keys()) - set(init_param_names)
+            for name in useless_var_names:
+                del local_vars[name]
+
+        self._hparams[part_key] = OrderedDict({
+            "type": str(locals_dict["self"].__class__),
+            "spec_args": OrderedDict()
+        })
+        # Construct the hparams dict recursively
+        _parse_fn(None, locals_dict, self._hparams[part_key]["spec_args"])
+
+        # Clear it as parsing completes
+        self._init_local_vars.clear()
 
     @staticmethod
     def _setup_logger(logger_arg: str, run: Run) \
@@ -112,8 +290,14 @@ class Config:
         return logger_instances
 
     def setup_wrappers(self):
+        """ Instantiate the task/data wrapper and capture their `__init__`'s arguments. """
+        sys.setprofile(self._collect_task_wrapper_frame_locals)
         self.task_wrapper = self.task_wrapper_getter()
+        sys.setprofile(None)
+
+        sys.setprofile(self._collect_data_wrapper_frame_locals)
         self.data_wrapper = self.data_wrapper_getter()
+        sys.setprofile(None)
 
     def setup_trainer(self, logger_arg: str, run: Run):
         """
@@ -122,22 +306,38 @@ class Config:
         :param run:
         :return:
         """
-        # TODO 向 _setup_logger 传入要记录的超参数
         logger = Config._setup_logger(logger_arg=logger_arg, run=run)
-        job_type = run.job_type
+        self._cur_run_job_type = job_type = run.job_type
+
         if job_type == "fit":
+            sys.setprofile(self._collect_trainer_frame_locals)
             self.fit_trainer = self.fit_trainer_getter(logger) if self.fit_trainer_getter \
                 else self.default_trainer_getter(logger)
+            sys.setprofile(None)
         elif job_type == "validate":
+            sys.setprofile(self._collect_trainer_frame_locals)
             self.validate_trainer = self.validate_trainer_getter(logger) if self.validate_trainer_getter \
                 else self.default_trainer_getter(logger)
+            sys.setprofile(None)
         elif job_type == "test":
+            sys.setprofile(self._collect_trainer_frame_locals)
             self.test_trainer = self.test_trainer_getter(logger) if self.test_trainer_getter \
                 else self.default_trainer_getter(logger)
+            sys.setprofile(None)
         elif job_type == "predict":
+            sys.setprofile(self._collect_trainer_frame_locals)
             self.predict_trainer = self.predict_trainer_getter(logger) if self.predict_trainer_getter \
                 else self.default_trainer_getter(logger)
+            sys.setprofile(None)
 
+        # TODO
+        # 保存 self._hparams, 向 logger 传入要记录的超参数
+        # json.dumps(self._hparams, indent=2)
+
+        # 清空 self._hparams
+        # self._hparams.clear()
+
+    # ################### Methods for Archiving Config Files ###################
     @staticmethod
     def _ensure_dir_exist(dir_path, as_python_package=True):
         if not osp.exists(dir_path):
@@ -188,26 +388,3 @@ class Config:
             shutil.make_archive(base_name=osp.join(osp.dirname(save_dir), osp.split(save_dir)[1]),
                                 format="zip", root_dir=save_dir)
             shutil.rmtree(save_dir)
-
-    def get_hparams(self) -> dict:
-        pass
-
-    def collect_hyperparameters(self, job_type: str) -> dict:
-        """
-        自动收集超参数以供记录
-        :param job_type:
-        :return:
-        """
-        if self.task_wrapper:
-            all_init_args: inspect.Signature = inspect.signature(self.task_wrapper.__class__.__init__)
-            filtered_init_args = {}
-
-            for key in all_init_args.parameters.keys():
-                if key == "self":
-                    continue
-                filtered_init_args[key] = getattr(self, key)
-
-        if self.data_wrapper:
-            pass
-
-        # trainer

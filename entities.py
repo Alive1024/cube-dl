@@ -5,11 +5,29 @@ import os
 import os.path as osp
 from datetime import datetime
 from abc import abstractmethod
-from typing import List, Literal, Union, Optional
+from typing import List, Literal, Union, Optional, Callable
+from functools import wraps
 import re
 import warnings
 import shutil
 import json
+
+
+def rank_zero_only(fn: Callable) -> Callable:
+    """
+    Function that can be used as a decorator to enable a function/method being called only on global rank 0.
+    Borrowed from lightning_utilities/core/rank_zero.py
+    """
+    @wraps(fn)
+    def wrapped_fn(*args, **kwargs):
+        rank = getattr(rank_zero_only, "rank", None)
+        if rank is None:
+            raise RuntimeError("The `rank_zero_only.rank` needs to be set before use")
+        if rank == 0:
+            return fn(*args, **kwargs)
+        return None
+
+    return wrapped_fn
 
 
 def get_next_id(dst_dir, id_type: Literal["proj", "exp", "run", "metrics_csv"]) -> int:
@@ -68,13 +86,13 @@ def get_name_from_id(output_dir, ids: Union[int, List[int]], id_type: Literal["p
         return proj_name, exp_name
 
 
-class _ValueBase:
-    value_type: Literal["proj", "exp", "run"]
+class _EntityBase:
+    entity_type: Literal["proj", "exp", "run"]
 
     def __init__(self, relative_dir: str, name: str, desc: str, record_file_path: str, output_dir: str):
-        self.global_id: int = get_next_id(relative_dir, id_type=self.value_type)
+        self.global_id: int = get_next_id(relative_dir, id_type=self.entity_type)
 
-        self.name = f"{self.value_type}_{self.global_id}_{name}"
+        self.name = f"{self.entity_type}_{self.global_id}_{name}"
         self.desc = desc
         self.record_file_path = record_file_path
         self.output_dir = output_dir
@@ -83,7 +101,7 @@ class _ValueBase:
         self._extra_record_data = {}
 
     def print_message(self, storage_path):
-        print(f"{self.value_type}: {self.name} created, storage path: {storage_path}")
+        print(f"{self.entity_type}: {self.name} created, storage path: {storage_path}")
 
     # ################# Setter and getter for extra record data, which allows for save custom data.
     def set_extra_record_data(self, **kwargs):
@@ -116,8 +134,8 @@ class _ValueBase:
         raise NotImplementedError
 
 
-class Project(_ValueBase):
-    value_type = "proj"
+class Project(_EntityBase):
+    entity_type = "proj"
 
     def __init__(self, name: str, desc: str, output_dir: str):
         super().__init__(relative_dir=output_dir, name=name, desc=desc,
@@ -141,18 +159,18 @@ class Project(_ValueBase):
     def _write_new_record_entry(self):
         with open(self.record_file_path, 'w') as f:
             print(self._get_record_dict())
-            json.dump(self._get_record_entry(), f, indent=4)
+            json.dump(self._get_record_entry(), f, indent=2)
 
     def _update_record_entry(self):
         with open(self.record_file_path, 'r') as f:
             record = json.load(f)
             record.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=4)
+            json.dump(record, f, indent=2)
 
 
-class Experiment(_ValueBase):
-    value_type = "exp"
+class Experiment(_EntityBase):
+    entity_type = "exp"
 
     def __init__(self, name: str, desc: str, proj_id: int, output_dir: str):
         proj_name = get_name_from_id(output_dir, proj_id, id_type="proj")
@@ -188,7 +206,7 @@ class Experiment(_ValueBase):
             record = json.load(f)
             record["Exps"].append(self._get_record_entry())
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=4)
+            json.dump(record, f, indent=2)
 
     def _update_record_entry(self):
         with open(self.record_file_path, 'r') as f:
@@ -197,11 +215,11 @@ class Experiment(_ValueBase):
                 if exp["Exp ID"] == self.global_id:
                     exp.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=4)
+            json.dump(record, f, indent=2)
 
 
-class Run(_ValueBase):
-    value_type = "run"
+class Run(_EntityBase):
+    entity_type = "run"
 
     def __init__(self, name: str, desc: str, proj_id: int, exp_id: int, job_type: str,
                  output_dir: str, resume_from: Optional[str] = None):
@@ -262,6 +280,7 @@ class Run(_ValueBase):
             shutil.move(metrics_csv_path,
                         metrics_csv_path[:-4] + f"_{max_cnt}.csv")
 
+    @rank_zero_only
     def merge_metrics_csv(self):
         """
         Merge multiple metrics_csv (if any) into "merged_metrics.csv".
@@ -312,7 +331,7 @@ class Run(_ValueBase):
                 if exp["Exp ID"] == self.exp_id:
                     exp["Runs"].append(self._get_record_entry())
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=4)
+            json.dump(record, f, indent=2)
 
     def _update_record_entry(self):
         with open(self.record_file_path, 'r') as f:
@@ -323,4 +342,4 @@ class Run(_ValueBase):
                         if run["Run ID"] == self.global_id:
                             run.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=4)
+            json.dump(record, f, indent=2)

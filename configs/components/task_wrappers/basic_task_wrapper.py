@@ -6,7 +6,7 @@ from wrappers import BasicTaskWrapper
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
-def get_task_wrapper_instance():
+def get_task_wrapper_instance() -> BasicTaskWrapper:
     model = get_model_instance()
     loss_func = nn.NLLLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
@@ -17,5 +17,5 @@ def get_task_wrapper_instance():
         # lr_scheduler=torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000),
         validate_metrics=loss_func,
         # test_metrics=[loss_func]
-        test_metrics=[loss_func, MulticlassAccuracy(num_classes=10)]
+        test_metrics=[loss_func, MulticlassAccuracy(num_classes=10)],
     )
