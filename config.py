@@ -94,7 +94,7 @@ class Config:
                 raise RuntimeError(f"The name of the getter is not correct, which should be \"{getter_name}\", "
                                    f"rather than \"{getter.__name__}\"")
             ret_type = inspect.signature(getter).return_annotation
-            if ret_type == inspect.Signature.empty:
+            if ret_type is inspect.Signature.empty:
                 raise RuntimeError(f"The Return type of the getter {getter_name} should be specified, "
                                    f"like `def {getter_name}() -> ReturnType:`")
             else:
@@ -167,7 +167,7 @@ class Config:
         """
 
         """
-        def _parse_fn(key, value, dst: Union[OrderedDict, List], exclusive_keys: Iterable = ("self",)):
+        def _parse_fn(key, value, dst: OrderedDict, exclusive_keys: Iterable = ("self",)):
             # Get rid of specific key(s), "self" must be excluded, otherwise infinite recurse will happen.
             if key in exclusive_keys:
                 return
