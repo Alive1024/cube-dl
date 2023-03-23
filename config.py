@@ -122,12 +122,10 @@ class Config:
             self._init_local_vars[id(f_locals["self"])] = f_locals
             # The last frame corresponds to the outermost object, i.e. a task wrapper object
             if type(f_locals["self"]) == self._task_wrapper_cls:
-                self._parse_frame_locals(f_locals, part_key="task_wrapper")
+                self._parse_frame_locals_into_hparams(f_locals, part_key="task_wrapper")
 
     def _collect_data_wrapper_frame_locals(self, frame, event, arg):
-        """
-        Similar to `_collect_task_wrapper_frame_locals`.
-        """
+        """ Similar to `_collect_task_wrapper_frame_locals`. """
         if event != "return":
             return
         if frame.f_back.f_code.co_name != Config.DATA_WRAPPER_GETTER_NAME:
@@ -137,12 +135,10 @@ class Config:
         if "self" in f_locals:
             self._init_local_vars[id(f_locals["self"])] = f_locals
             if type(f_locals["self"]) == self._data_wrapper_cls:
-                self._parse_frame_locals(f_locals, part_key="data_wrapper")
+                self._parse_frame_locals_into_hparams(f_locals, part_key="data_wrapper")
 
     def _collect_trainer_frame_locals(self, frame, event, arg):
-        """
-        Similar to `_collect_task_wrapper_frame_locals`.
-        """
+        """ Similar to `_collect_task_wrapper_frame_locals`. """
         if event != "return":
             return
         # Filter condition is special for pl.Trainer, as its `__init__` is wrapped by "_defaults_from_env_vars",
@@ -159,11 +155,12 @@ class Config:
             # corresponding to `__init__` contains the actual local variables we want.
             # Hence, there are two conditions needed to be met.
             if type(f_locals["self"]) == self._trainer_cls and frame.f_code.co_name == "__init__":
-                self._parse_frame_locals(f_locals, part_key=self._cur_run_job_type + "_trainer")
+                self._parse_frame_locals_into_hparams(f_locals, part_key=self._cur_run_job_type + "_trainer")
 
-    def _parse_frame_locals(self, locals_dict: dict,
-                            part_key: Literal["task_wrapper", "data_wrapper",
-                                              "fit_trainer", "validate_trainer", "test_trainer", "predict_trainer"]):
+    def _parse_frame_locals_into_hparams(self, locals_dict: dict,
+                                         part_key: Literal["task_wrapper", "data_wrapper",
+                                                           "fit_trainer", "validate_trainer",
+                                                           "test_trainer", "predict_trainer"]):
         """
 
         """
@@ -193,9 +190,9 @@ class Config:
                     if id(value) in self._init_local_vars:
                         dst[key] = OrderedDict({
                             "type": str(value.__class__),  # class type
-                            "spec_args": OrderedDict()
+                            "args": OrderedDict()
                         })
-                        _parse_fn(key, self._init_local_vars[id(value)], dst[key]["spec_args"])
+                        _parse_fn(key, self._init_local_vars[id(value)], dst[key]["args"])
 
             # Callable ? (Classes implemented __call__ also belongs to Callable)
             # General objects
@@ -203,9 +200,9 @@ class Config:
                 if id(value) in self._init_local_vars:
                     dst[key] = OrderedDict({
                         "type": str(value.__class__),  # class type
-                        "spec_args": OrderedDict()
+                        "args": OrderedDict()
                     })
-                    _parse_fn(key, self._init_local_vars[id(value)], dst[key]["spec_args"])
+                    _parse_fn(key, self._init_local_vars[id(value)], dst[key]["args"])
 
         # Delete those local variables which are not the args of `__init__`
         for local_vars in self._init_local_vars.values():
@@ -216,10 +213,10 @@ class Config:
 
         self._hparams[part_key] = OrderedDict({
             "type": str(locals_dict["self"].__class__),
-            "spec_args": OrderedDict()
+            "args": OrderedDict()
         })
         # Construct the hparams dict recursively
-        _parse_fn(None, locals_dict, self._hparams[part_key]["spec_args"])
+        _parse_fn(None, locals_dict, self._hparams[part_key]["args"])
 
         # Clear it as parsing completes
         self._init_local_vars.clear()
@@ -332,10 +329,10 @@ class Config:
 
         # TODO
         # 保存 self._hparams, 向 logger 传入要记录的超参数
-        # json.dumps(self._hparams, indent=2)
+        # print(json.dumps(self._hparams, indent=2))
 
         # 清空 self._hparams
-        # self._hparams.clear()
+        self._hparams.clear()
 
     # ################### Methods for Archiving Config Files ###################
     @staticmethod
