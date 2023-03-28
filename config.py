@@ -16,6 +16,7 @@ from entities import Run
 
 
 class Config:
+    # Names of the getters, corresponding to the function names in the config files.
     TASK_WRAPPER_GETTER_NAME = "get_task_wrapper_instance"
     MODEL_GETTER_NAME = "get_model_instance"
     DATA_WRAPPER_GETTER_NAME = "get_data_wrapper_instance"
@@ -164,15 +165,26 @@ class Config:
         """
 
         """
+
         def _parse_fn(key, value, dst: OrderedDict, exclusive_keys: Iterable = ("self",)):
             # Get rid of specific key(s), "self" must be excluded, otherwise infinite recurse will happen.
             if key in exclusive_keys:
                 return
 
             # Atomic data types
-            if value is None:
-                dst[key] = None
-            elif isinstance(value, (bool, int, float, complex, str)):
+            if (value is None) or (isinstance(value, (bool, int, float, complex, str))):
+                # print(1)
+                # init_params = inspect.signature(belonging_cls.__init__).parameters
+                # print(belonging_cls.__name__, init_params.keys())
+                # default_value = init_params[key].default
+                # if default_value != inspect.Parameter.empty:
+                #     dst[key] = OrderedDict({
+                #         "spec": value,
+                #         "default": default_value
+                #     })
+                # else:
+                #     dst[key] = value
+
                 dst[key] = value
 
             # Iterable data types,
@@ -182,7 +194,7 @@ class Config:
             elif isinstance(value, Iterable):  # list, tuple, set
                 dst[key] = OrderedDict()
                 # Some class may override `__iter__` method (which means it is `Iterable`),
-                # but do not really implement it, only raise a NotImplementedError when trying to enumerate it.
+                # but do not really implement it, only raise a `NotImplementedError` when trying to enumerate it.
                 try:
                     for idx, v in enumerate(value):
                         _parse_fn(idx, v, dst[key])
@@ -329,7 +341,7 @@ class Config:
 
         # TODO
         # 保存 self._hparams, 向 logger 传入要记录的超参数
-        # print(json.dumps(self._hparams, indent=2))
+        print(json.dumps(self._hparams, indent=2))
 
         # 清空 self._hparams
         self._hparams.clear()
