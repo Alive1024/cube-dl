@@ -7,6 +7,7 @@ import shutil
 import re
 from collections import OrderedDict
 import json
+from contextlib import contextmanager
 
 import pytorch_lightning as pl
 from pytorch_lightning.tuner.tuning import Tuner
@@ -106,6 +107,20 @@ class Config:
                     self._data_wrapper_cls = ret_type
                 elif getter_name == Config.TRAINER_GETTER_NAME:
                     self._trainer_cls = ret_type
+
+    @contextmanager
+    def _collect_frame_locals(self, collect_type: Literal["task_wrapper", "data_wrapper", "trainer"]):
+        collect_fn = None
+        if collect_type == "task_wrapper":
+            collect_fn = self._collect_task_wrapper_frame_locals
+        elif collect_type == "data_wrapper":
+            collect_fn = self._collect_data_wrapper_frame_locals
+        elif collect_type == "trainer":
+            collect_fn = self._collect_trainer_frame_locals
+
+        sys.setprofile(collect_fn)
+        yield   # separate `__enter__` and `__exit__`
+        sys.setprofile(None)
 
     def _collect_task_wrapper_frame_locals(self, frame, event, arg):
         """
@@ -312,13 +327,11 @@ class Config:
 
     def setup_wrappers(self):
         """ Instantiate the task/data wrapper and capture their `__init__`'s arguments. """
-        sys.setprofile(self._collect_task_wrapper_frame_locals)
-        self.task_wrapper = self.task_wrapper_getter()
-        sys.setprofile(None)
+        with self._collect_frame_locals("task_wrapper"):
+            self.task_wrapper = self.task_wrapper_getter()
 
-        sys.setprofile(self._collect_data_wrapper_frame_locals)
-        self.data_wrapper = self.data_wrapper_getter()
-        sys.setprofile(None)
+        with self._collect_frame_locals("data_wrapper"):
+            self.data_wrapper = self.data_wrapper_getter()
 
     def setup_trainer(self, logger_arg: str, run: Run):
         """
@@ -330,26 +343,19 @@ class Config:
         logger = Config._setup_logger(logger_arg=logger_arg, run=run)
         self._cur_run_job_type = job_type = run.job_type
 
-        if job_type == "fit":
-            sys.setprofile(self._collect_trainer_frame_locals)
-            self.fit_trainer = self.fit_trainer_getter(logger) if self.fit_trainer_getter \
-                else self.default_trainer_getter(logger)
-            sys.setprofile(None)
-        elif job_type == "validate":
-            sys.setprofile(self._collect_trainer_frame_locals)
-            self.validate_trainer = self.validate_trainer_getter(logger) if self.validate_trainer_getter \
-                else self.default_trainer_getter(logger)
-            sys.setprofile(None)
-        elif job_type == "test":
-            sys.setprofile(self._collect_trainer_frame_locals)
-            self.test_trainer = self.test_trainer_getter(logger) if self.test_trainer_getter \
-                else self.default_trainer_getter(logger)
-            sys.setprofile(None)
-        elif job_type == "predict":
-            sys.setprofile(self._collect_trainer_frame_locals)
-            self.predict_trainer = self.predict_trainer_getter(logger) if self.predict_trainer_getter \
-                else self.default_trainer_getter(logger)
-            sys.setprofile(None)
+        with self._collect_frame_locals("trainer"):
+            if job_type == "fit":
+                self.fit_trainer = self.fit_trainer_getter(logger) if self.fit_trainer_getter \
+                    else self.default_trainer_getter(logger)
+            elif job_type == "validate":
+                self.validate_trainer = self.validate_trainer_getter(logger) if self.validate_trainer_getter \
+                    else self.default_trainer_getter(logger)
+            elif job_type == "test":
+                self.test_trainer = self.test_trainer_getter(logger) if self.test_trainer_getter \
+                    else self.default_trainer_getter(logger)
+            elif job_type == "predict":
+                self.predict_trainer = self.predict_trainer_getter(logger) if self.predict_trainer_getter \
+                    else self.default_trainer_getter(logger)
 
         # TODO
         # 保存 self._hparams, 向 logger 传入要记录的超参数
