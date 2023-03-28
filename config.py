@@ -163,58 +163,70 @@ class Config:
                                                            "fit_trainer", "validate_trainer",
                                                            "test_trainer", "predict_trainer"]):
         """
-
+        Known limitations:
+            - Tuple, set and other Iterable variables will be converted to lists.
+            - Generator: Values of generator type cannot be recorded,
+                e.g. the return value of `torch.nn.Module.parameters`.
         """
+        def __parse_obj(key, value, dst: Union[OrderedDict, List]):
+            """ Parsing general objects, used in `_parse_fn`. """
+            if id(value) in self._init_local_vars:
+                new_dst = OrderedDict({
+                    "type": str(value.__class__),  # class type
+                    "args": OrderedDict()
+                })
+                if isinstance(dst, OrderedDict):
+                    dst[key] = new_dst
+                elif isinstance(dst, List):
+                    dst.append(new_dst)
+                _parse_fn(key, self._init_local_vars[id(value)], new_dst["args"])
 
-        def _parse_fn(key, value, dst: OrderedDict, exclusive_keys: Iterable = ("self",)):
+        def _parse_fn(key, value, dst: Union[OrderedDict, List], exclusive_keys: Iterable = ("self",)):
             # Get rid of specific key(s), "self" must be excluded, otherwise infinite recurse will happen.
             if key in exclusive_keys:
                 return
 
             # Atomic data types
             if (value is None) or (isinstance(value, (bool, int, float, complex, str))):
-                # print(1)
-                # init_params = inspect.signature(belonging_cls.__init__).parameters
-                # print(belonging_cls.__name__, init_params.keys())
-                # default_value = init_params[key].default
-                # if default_value != inspect.Parameter.empty:
-                #     dst[key] = OrderedDict({
-                #         "spec": value,
-                #         "default": default_value
-                #     })
-                # else:
-                #     dst[key] = value
+                if isinstance(dst, OrderedDict):
+                    dst[key] = value
+                elif isinstance(dst, List):
+                    dst.append(value)
 
-                dst[key] = value
-
-            # Iterable data types,
+            # Iterable data types
+            # Special for dict.
             elif isinstance(value, dict):
                 for k, v in value.items():
                     _parse_fn(k, v, dst)
-            elif isinstance(value, Iterable):  # list, tuple, set
-                dst[key] = OrderedDict()
-                # Some class may override `__iter__` method (which means it is `Iterable`),
-                # but do not really implement it, only raise a `NotImplementedError` when trying to enumerate it.
+            # List, tuple, set and any other class's objects which has implemented the `__iter__` method
+            elif isinstance(value, Iterable):
+                # Check whether the value is "really" Iterable at first.
+                # Some class (e.g. torchmetrics 's metric classes) may override the `__iter__` method
+                # (which means it is `Iterable`), but do not really implement it,
+                # only raise a `NotImplementedError` when trying to enumerate it.
+                really_iterable = True
                 try:
-                    for idx, v in enumerate(value):
-                        _parse_fn(idx, v, dst[key])
+                    for _ in value:
+                        break
                 except NotImplementedError:
-                    if id(value) in self._init_local_vars:
-                        dst[key] = OrderedDict({
-                            "type": str(value.__class__),  # class type
-                            "args": OrderedDict()
-                        })
-                        _parse_fn(key, self._init_local_vars[id(value)], dst[key]["args"])
+                    really_iterable = False
+
+                if really_iterable:
+                    new_dst = []    # use list to store Iterable data
+                    if isinstance(dst, OrderedDict):
+                        dst[key] = new_dst
+                    elif isinstance(dst, List):
+                        dst.append(new_dst)
+
+                    for idx, v in enumerate(value):
+                        _parse_fn(idx, v, new_dst)
+                else:
+                    __parse_obj(key, value, dst)
 
             # Callable ? (Classes implemented __call__ also belongs to Callable)
             # General objects
             else:
-                if id(value) in self._init_local_vars:
-                    dst[key] = OrderedDict({
-                        "type": str(value.__class__),  # class type
-                        "args": OrderedDict()
-                    })
-                    _parse_fn(key, self._init_local_vars[id(value)], dst[key]["args"])
+                __parse_obj(key, value, dst)
 
         # Delete those local variables which are not the args of `__init__`
         for local_vars in self._init_local_vars.values():
