@@ -15,7 +15,6 @@ import pytorch_lightning as pl
 from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
-import wandb
 
 from entities import Run
 
@@ -313,6 +312,7 @@ class RootConfig:
         Some loggers support for logging hyper-parameters, call their APIS here.
         """
         if "wandb" in loggers:
+            import wandb
             wandb.config.update(hparams)
 
     # ======================================================================================================
@@ -340,6 +340,7 @@ class RootConfig:
                 elif logger_name == "wandb":
                     # Call `wandb.finish()` before instantiating `WandbLogger` to avoid reusing the wandb run if there
                     # has been already created wandb run in progress, as indicated by wandb 's UserWarning.
+                    import wandb
                     wandb.finish()
                     if run.is_resuming:
                         wandb_logger = WandbLogger(save_dir=run.proj_dir,
@@ -352,7 +353,7 @@ class RootConfig:
                                                    )
                     else:
                         # Generate a run id and save it to the record file for future fit resuming.
-                        wandb_run_id = wandb.util.generate_id()
+                        wandb_run_id = wandb.sdk.lib.runid.generate_id()
                         run.set_extra_record_data(wandb_run_id=wandb_run_id)
                         wandb_logger = WandbLogger(save_dir=run.proj_dir,
                                                    name=run.name,  # display name for the run
