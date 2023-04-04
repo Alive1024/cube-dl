@@ -44,7 +44,7 @@ class RootConfig:
                  ):
         if (not default_trainer_getter) and (not fit_trainer_getter) and (not validate_trainer_getter) \
                 and (not test_trainer_getter) and (not predict_trainer_getter):
-            raise RuntimeError("The trainer getters can't be all None.")
+            raise ValueError("The trainer getters can't be all None.")
 
         # ============= Attributes for capturing hparams =============
         # These three attributes should be defined before `_check_getter` assigning them
@@ -124,12 +124,12 @@ class RootConfig:
         """
         if getter_func:
             if getter_func.__name__ != getter_name:
-                raise RuntimeError(f"The name of the getter is not correct, which should be \"{getter_name}\", "
-                                   f"rather than \"{getter_func.__name__}\"")
+                raise ValueError(f"The name of the getter is not correct, which should be \"{getter_name}\", "
+                                 f"rather than \"{getter_func.__name__}\"")
             ret_type = inspect.signature(getter_func).return_annotation
             if ret_type is inspect.Signature.empty:
-                raise RuntimeError(f"The Return type of the getter {getter_name} should be specified, "
-                                   f"like `def {getter_name}() -> ReturnType:`")
+                raise ValueError(f"The Return type of the getter {getter_name} should be specified, "
+                                 f"like `def {getter_name}() -> ReturnType:`")
             else:
                 # Get the class type from the return type hints
                 if getter_name == RootConfig.TASK_WRAPPER_GETTER_NAME:

@@ -15,7 +15,7 @@ JOB_TYPES = ("fit", "validate", "test", "predict", "tune")
 
 def _check_trainer(trainer: pl.Trainer, job_type: str):
     if not trainer:
-        raise RuntimeError(f"There is no trainer for {job_type}, please specify it in the Config instance.")
+        raise ValueError(f"There is no trainer for {job_type}, please specify it in the Config instance.")
 
 
 def _check_test_predict_before_fit(runs: list, current_stage_idx: int) -> bool:
@@ -29,20 +29,6 @@ def _check_test_predict_before_fit(runs: list, current_stage_idx: int) -> bool:
         if (stage == "test" or stage == "predict") and (not has_fitted):
             return True
     return False
-
-
-# def _get_executed_command(line_prefix: str = '') -> str:
-#     command = f"{line_prefix}python {sys.argv[0]} \\\n"
-#     argv_len = len(sys.argv)
-#     for i in range(1, argv_len):
-#         if i % 2 == 1:  # arg name
-#             command += f"{line_prefix}{sys.argv[i]} "
-#         else:  # arg value
-#             if i != (argv_len - 1):
-#                 command += f"\"{sys.argv[i]}\" \\\n"
-#             else:  # the last
-#                 command += f"\"{sys.argv[i]}\""
-#     return command
 
 
 def _get_root_config_instance(config_file_path, return_getter=False):
@@ -79,15 +65,15 @@ def _exec(args):
     runs: list = re.split(r"[\s,]+", args.runs)
     for job_type in runs:
         if job_type not in JOB_TYPES:
-            raise RuntimeError(f"Unrecognized job_type: `{job_type}`, please choose from {JOB_TYPES}.")
+            raise ValueError(f"Unrecognized job_type: `{job_type}`, please choose from {JOB_TYPES}.")
 
     if ("fit" not in runs) and (args.fit_resumes_from is not None):
-        raise RuntimeError("There is no `fit` in the runs but `--fit-resumes-from` are provided.")
+        raise ValueError("There is no `fit` in the runs but `--fit-resumes-from` are provided.")
 
     # If there is test/predict before fit in the runs, `--test-predict-ckpt` must be explicitly provided
     if _check_test_predict_before_fit(runs, current_stage_idx=len(runs) - 1) and args.test_predict_ckpt == '':
-        raise RuntimeError("There is test/predict before fit in the runs, "
-                           "please provide the argument `--test-predict-ckpt`. Run `python main.py -h` to learn more.")
+        raise ValueError("There is test/predict before fit in the runs, "
+                         "please provide the argument `--test-predict-ckpt`. Run `python main.py -h` to learn more.")
     # ================================================================================
 
     pl.seed_everything(42)
