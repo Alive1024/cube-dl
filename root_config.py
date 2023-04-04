@@ -348,7 +348,7 @@ class RootConfig:
                                                    # The name of the project to which this run will belong:
                                                    project=osp.split(run.proj_dir)[1],
                                                    group=run.exp_name,  # use exp_name to group runs
-                                                   job_type=run.name.split('_')[-1],
+                                                   job_type=run.job_type,
                                                    id=run.get_extra_record_data("wandb_run_id"), resume="must"
                                                    )
                     else:
@@ -360,7 +360,7 @@ class RootConfig:
                                                    # The name of the project to which this run will belong:
                                                    project=osp.split(run.proj_dir)[1],
                                                    group=run.exp_name,  # use exp_name to group runs
-                                                   job_type=run.name.split('_')[-1],
+                                                   job_type=run.job_type,
                                                    id=wandb_run_id
                                                    )
                     logger_instances.append(wandb_logger)
@@ -417,7 +417,6 @@ class RootConfig:
                 f.close()
 
     @staticmethod
-    @rank_zero_only
     def _copy_file_from_getter(getter_func, dst_dir):
         if getter_func:
             original_file_path = inspect.getfile(getter_func)  # get the file path to the getter function
@@ -511,11 +510,10 @@ class RootConfig:
         if trainer_getter_func is None:
             return None, root_config_src
 
-        trainer_src = "class {cls_name}:\n\t@staticmethod\n{src}"
-        src = inspect.getsource(trainer_getter_func)
-        src = '\n'.join(['\t' + line for line in src.split('\n')])  # add tabs
+        trainer_src = inspect.getsource(trainer_getter_func)
+        trainer_src = '\n'.join(['\t' + line for line in trainer_src.split('\n')])  # add tabs
         cls_name = f"{kind.capitalize()}TrainerGetter"
-        trainer_src = trainer_src.format(cls_name=cls_name, src=src).expandtabs(tabsize=4)
+        trainer_src = f"class {cls_name}:\n\t@staticmethod\n{trainer_src}".expandtabs(tabsize=4)
         return trainer_src, root_config_src.replace(f"{kind}_trainer_getter={RootConfig.TRAINER_GETTER_NAME}",
                                                     f"{kind}_trainer_getter={cls_name}."
                                                     f"{RootConfig.TRAINER_GETTER_NAME}")

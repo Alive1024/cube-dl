@@ -16,12 +16,11 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 
 class _EntityBase:
-    entity_type: Literal["proj", "exp", "run"]
+    ENTITY_TYPE: Literal["proj", "exp", "run"]
 
     def __init__(self, relative_dir: str, name: str, desc: str, record_file_path: str, output_dir: str):
         self.global_id: int = self.get_next_id(relative_dir)
-
-        self.name = f"{self.entity_type}_{self.global_id}_{name}"
+        self.name = f"{self.ENTITY_TYPE}_{self.global_id}_{name}"
         self.desc = desc
         self.record_file_path = record_file_path
         self.output_dir = output_dir
@@ -33,7 +32,11 @@ class _EntityBase:
     def _create_dir(self, target_dir, print_message=True):
         os.mkdir(target_dir)
         if print_message:
-            print(f"{self.entity_type}: {self.name} created, storage path: {target_dir}")
+            print(f"{self.ENTITY_TYPE}: {self.name} created, storage path: {target_dir}")
+
+    @staticmethod
+    def _json_dump_to_file(obj, fp):
+        json.dump(obj, fp, indent=2)
 
     # =========== Setter and getter for extra record data, which allows for save custom data. ===========
     def set_extra_record_data(self, **kwargs):
@@ -89,6 +92,7 @@ class _EntityBase:
         raise NotImplementedError
 
     @abstractmethod
+    @rank_zero_only
     def _update_record_entry(self):
         """
         Used when a key-value pair is set, i.e. when `set_extra_record_data` is called.
@@ -97,7 +101,7 @@ class _EntityBase:
 
 
 class Project(_EntityBase):
-    entity_type = "proj"
+    ENTITY_TYPE = "proj"
 
     def __init__(self, name: str, desc: str, output_dir: str):
         super().__init__(relative_dir=output_dir, name=name, desc=desc,
@@ -111,7 +115,7 @@ class Project(_EntityBase):
     def get_next_id(output_dir) -> int:
         indices = []
         for i in os.listdir(output_dir):
-            if i.startswith(Project.entity_type + '_'):
+            if i.startswith(Project.ENTITY_TYPE + '_'):
                 indices.append(int(i.split('_')[1]))
         return 1 if len(indices) == 0 else (max(indices) + 1)
 
@@ -121,15 +125,14 @@ class Project(_EntityBase):
             "Project Name": self.name,
             "Project Description": self.desc,
             "Created Time": self.created_time,
-            "Storage Path": self.output_dir,
+            "Storage Path": osp.abspath(self.output_dir),
             "Exps": []
         }
 
     @rank_zero_only
     def _write_new_record_entry(self):
         with open(self.record_file_path, 'w') as f:
-            print(self._get_record_dict())
-            json.dump(self._get_record_entry(), f, indent=2)
+            Project._json_dump_to_file(self._get_record_entry(), f)
 
     @rank_zero_only
     def _update_record_entry(self):
@@ -137,11 +140,12 @@ class Project(_EntityBase):
             record = json.load(f)
             record.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=2)
+            Project._json_dump_to_file(record, f)
 
 
 class Experiment(_EntityBase):
-    entity_type = "exp"
+    ENTITY_TYPE = "exp"
+    ARCHIVED_CONFIGS_DIRNAME = "archived_configs"
 
     def __init__(self, name: str, desc: str, proj_id: int, output_dir: str):
         proj_name = Experiment.get_proj_name_from_id(output_dir, proj_id)
@@ -154,21 +158,21 @@ class Experiment(_EntityBase):
         self.exp_dir = osp.join(self.proj_dir, self.name)
         self._create_dir(self.exp_dir)
         # Create the directory for archived configs
-        self._create_dir(osp.join(self.exp_dir, "archived_configs"), print_message=False)
+        self._create_dir(osp.join(self.exp_dir, Experiment.ARCHIVED_CONFIGS_DIRNAME), print_message=False)
         self._write_new_record_entry()
 
     @staticmethod
     def get_next_id(proj_dir) -> int:
         indices = []
         for i in os.listdir(proj_dir):
-            if i.startswith(Experiment.entity_type + '_'):
+            if i.startswith(Experiment.ENTITY_TYPE + '_'):
                 indices.append(int(i.split('_')[1]))
         return 1 if len(indices) == 0 else (max(indices) + 1)
 
     @staticmethod
     def get_archived_configs_dir(proj_id: int, exp_id: int, output_dir: str):
         proj_name, exp_name = Experiment.get_proj_exp_names_from_ids(output_dir, proj_id, exp_id)
-        return osp.join(output_dir, proj_name, exp_name, "archived_configs")
+        return osp.join(output_dir, proj_name, exp_name, Experiment.ARCHIVED_CONFIGS_DIRNAME)
 
     def _get_record_dict(self) -> dict:
         return {
@@ -185,7 +189,7 @@ class Experiment(_EntityBase):
             record = json.load(f)
             record["Exps"].append(self._get_record_entry())
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=2)
+            Experiment._json_dump_to_file(record, f)
 
     @rank_zero_only
     def _update_record_entry(self):
@@ -195,11 +199,11 @@ class Experiment(_EntityBase):
                 if exp["Exp ID"] == self.global_id:
                     exp.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=2)
+            Experiment._json_dump_to_file(record, f)
 
 
 class Run(_EntityBase):
-    entity_type = "run"
+    ENTITY_TYPE = "run"
 
     def __init__(self, name: str, desc: str, proj_id: int, exp_id: int, job_type: str,
                  output_dir: str, resume_from: Optional[str] = None):
@@ -286,7 +290,7 @@ class Run(_EntityBase):
                 if exp["Exp ID"] == self.exp_id:
                     exp["Runs"].append(self._get_record_entry())
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=2)
+            Run._json_dump_to_file(record, f)
 
     @rank_zero_only
     def _update_record_entry(self):
@@ -298,7 +302,7 @@ class Run(_EntityBase):
                         if run["Run ID"] == self.global_id:
                             run.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
-            json.dump(record, f, indent=2)
+            Run._json_dump_to_file(record, f)
 
     # ================== Dealing with pytorch_lightning.loggers.CSVLogger's metrics.csv ==================
     @staticmethod
@@ -360,7 +364,7 @@ class Run(_EntityBase):
             shutil.move(hparams_json_path, hparams_json_path[:-4] + f"_{max_cnt}.json")
 
         with open(hparams_json_path, 'w') as f:
-            json.dump(hparams, f, indent=2)
+            Run._json_dump_to_file(hparams, f)
 
     @staticmethod
     @rank_zero_only
