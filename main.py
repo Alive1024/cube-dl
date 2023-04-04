@@ -1,4 +1,3 @@
-import os
 import os.path as osp
 import argparse
 import importlib
@@ -6,18 +5,17 @@ import re
 
 import pytorch_lightning as pl
 
-from config import Config
-from entities import Project, Experiment, Run, get_next_id, get_name_from_id
+from root_config import RootConfig
+from entities import Project, Experiment, Run
 
-OUTPUT_DIR = "outputs"
+OUTPUT_DIR = "./outputs"
 
 JOB_TYPES = ("fit", "validate", "test", "predict", "tune")
-LOGGERS = ("CSV", "TensorBoard", "wandb")
 
 
-def _check_trainer(trainer: pl.Trainer, stage: str):
+def _check_trainer(trainer: pl.Trainer, job_type: str):
     if not trainer:
-        raise RuntimeError(f"There is no trainer for {stage}, please specify it in the Config instance.")
+        raise RuntimeError(f"There is no trainer for {job_type}, please specify it in the Config instance.")
 
 
 def _check_test_predict_before_fit(runs: list, current_stage_idx: int) -> bool:
@@ -47,19 +45,24 @@ def _check_test_predict_before_fit(runs: list, current_stage_idx: int) -> bool:
 #     return command
 
 
-def _get_config_instance(config_file_path, return_getter=False):
-    relative_file_path = config_file_path.replace(os.getcwd(), '')
+def _get_root_config_instance(config_file_path, return_getter=False):
+    # Remove the part of root directory in an absolute path.
+    relative_file_path = config_file_path.replace(osp.split(__file__)[0], '')
     import_path = relative_file_path.replace('\\', '.').replace('/', '.')
+
+    # Remove the opening '.', or importlib will seem it as a relative import and the `package` argument is needed.
+    if import_path.startswith('.'):
+        import_path = import_path[1:]
     if import_path.endswith(".py"):
         import_path = import_path[:-3]
 
     try:
-        config_getter = importlib.import_module(import_path).get_config_instance
-        config_instance: Config = config_getter()
+        root_config_getter = getattr(importlib.import_module(import_path), RootConfig.CONFIG_GETTER_NAME)
+        config_instance: RootConfig = root_config_getter()
     except AttributeError:
-        raise AttributeError(f"Expected a function called `get_config_instance` in your config file, like `config = "
-                             f"def get_config_instance(): ...`")
-    return (config_instance, config_getter) if return_getter else config_instance
+        raise AttributeError(f"Expected a function called `{RootConfig.CONFIG_GETTER_NAME}` in your root config file, "
+                             f"like `def {RootConfig.CONFIG_GETTER_NAME}(): ...`")
+    return (config_instance, root_config_getter) if return_getter else config_instance
 
 
 def _init(args):
@@ -88,25 +91,26 @@ def _exec(args):
     # ================================================================================
 
     pl.seed_everything(42)
-    config_instance, config_getter = _get_config_instance(args.config_file, return_getter=True)
+    config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
 
     # ============================ Archive the Config Files ============================
     if not args.fit_resumes_from:
-        proj_dir = osp.join(OUTPUT_DIR, get_name_from_id(OUTPUT_DIR, args.proj_id, id_type="proj"))
-        start_run_id = get_next_id(proj_dir, id_type="run")
         archived_configs_dir = Experiment.get_archived_configs_dir(proj_id=args.proj_id, exp_id=args.exp_id,
                                                                    output_dir=OUTPUT_DIR)
-        if len(runs) == 1:
-            current_run_config_save_dir = osp.join(archived_configs_dir,
-                                                   f"archived_config_run_{start_run_id}")
-        else:
-            current_run_config_save_dir = osp.join(archived_configs_dir,
-                                                   f"archived_config_run_{start_run_id}-{start_run_id + len(runs) - 1}")
-        config_instance.archive_config(config_getter, save_dir=current_run_config_save_dir)
-    # ================================================================================
+        start_run_id = Run.get_next_id(proj_dir=osp.join(OUTPUT_DIR,
+                                                         Project.get_proj_name_from_id(OUTPUT_DIR, args.proj_id)))
+        # config_instance.archive_config_into_dir_or_zip(root_config_getter,
+        #                                                archived_configs_dir=archived_configs_dir,
+        #                                                start_run_id=start_run_id,
+        #                                                end_start_id=start_run_id + len(runs) - 1)
+        config_instance.archive_config_into_single(root_config_getter,
+                                                   archived_configs_dir=archived_configs_dir,
+                                                   start_run_id=start_run_id,
+                                                   end_start_id=start_run_id + len(runs) - 1)
+    # ==================================================================================
 
     # ============================ Executing the Runs ============================
-    # Set up the task wrapper and the data wrapper
+    # Set up the task wrapper and the data wrapper.
     config_instance.setup_wrappers()
 
     for idx, job_type in enumerate(runs):
@@ -115,7 +119,7 @@ def _exec(args):
         run = Run(name=args.name, desc=args.desc, proj_id=args.proj_id, exp_id=args.exp_id,
                   job_type=job_type, output_dir=OUTPUT_DIR, resume_from=args.fit_resumes_from)
 
-        # Set up the trainer(s) for the current run
+        # Set up the trainer(s) for the current run.
         config_instance.setup_trainer(logger_arg=args.logger, run=run)
 
         if job_type == "fit":
@@ -125,9 +129,10 @@ def _exec(args):
                 datamodule=config_instance.data_wrapper,
                 ckpt_path=args.fit_resumes_from
             )
-            # Merge multiple metrics_csv (if any) into "merged_metrics.csv"
-            # after fit exits (finishes / KeyboardInterrupt)
-            run.merge_metrics_csv()
+            # Merge multiple metrics_csv (if any) into "merged_metrics.csv" after fit exits
+            # (finishes / KeyboardInterrupt).
+            Run.merge_metrics_csv(run.run_dir)
+            Run.remove_empty_hparams_yaml(run.run_dir)
 
         elif job_type == "validate":
             _check_trainer(config_instance.validate_trainer, job_type)
@@ -167,8 +172,9 @@ def _exec(args):
                 datamodule=config_instance.data_wrapper
             )
         elif job_type == "tune":
-            pass
             # TODO
+            raise NotImplementedError
+    # ============================================================================
 
 
 def main():
@@ -224,7 +230,7 @@ def main():
                                   "(this means you are going to take test/predict using the initialized model "
                                   "without training).")
     parser_exec.add_argument("-l", "--logger", type=str, default="CSV",
-                             help=f"Choose from {LOGGERS} "
+                             help=f"Choose from {RootConfig.LOGGERS} "
                                   f"and combine arbitrarily, seperated by comma. e.g. \"csv,wandb\" "
                                   f"Or it can be True/False, meaning using the default CSV and "
                                   f"disable logging respectively.")

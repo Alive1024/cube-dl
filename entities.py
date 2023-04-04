@@ -1,96 +1,25 @@
 """
-Entities implementing the "three-layer concepts": project, experiment, run, dealing with directories, filenames
+Entity classes implementing the "three-layer concepts": project, experiment and run.
+Dealing with directories, filenames
 """
 import os
 import os.path as osp
 from datetime import datetime
 from abc import abstractmethod
-from typing import List, Literal, Union, Optional, Callable
-from functools import wraps
+from typing import Literal, Optional, OrderedDict
 import re
 import warnings
 import shutil
 import json
 
-
-def rank_zero_only(fn: Callable) -> Callable:
-    """
-    Function that can be used as a decorator to enable a function/method being called only on global rank 0.
-    Borrowed from lightning_utilities/core/rank_zero.py
-    """
-    @wraps(fn)
-    def wrapped_fn(*args, **kwargs):
-        rank = getattr(rank_zero_only, "rank", None)
-        if rank is None:
-            raise RuntimeError("The `rank_zero_only.rank` needs to be set before use")
-        if rank == 0:
-            return fn(*args, **kwargs)
-        return None
-
-    return wrapped_fn
-
-
-def get_next_id(dst_dir, id_type: Literal["proj", "exp", "run", "metrics_csv"]) -> int:
-    """
-    Get the global id for proj / exp / run / CSVLogger's metrics.csv.
-    :param dst_dir:
-    :param id_type:
-    :return:
-    """
-    indices = []
-
-    # Iterate over the output dir and proj dir respectively
-    if id_type == "proj" or id_type == "exp":
-        for i in os.listdir(dst_dir):
-            if i.startswith(id_type + '_'):
-                indices.append(int(i.split('_')[1]))
-
-    # Iterate over all the exp dirs within the project directory to find the global run id.
-    elif id_type == "run":
-        for i in os.listdir(dst_dir):
-            if i.startswith("exp_"):
-                for j in os.listdir(osp.join(dst_dir, i)):
-                    if j.startswith("run_"):
-                        indices.append(int(j.split('_')[1]))
-
-    # Iterate within the run dir
-    elif id_type == "metrics_csv":
-        for filename in os.listdir(dst_dir):
-            if filename.startswith("metrics_"):
-                indices.append(int(osp.splitext(filename)[0].split('_')[1]))
-    return 1 if len(indices) == 0 else (max(indices) + 1)
-
-
-def get_name_from_id(output_dir, ids: Union[int, List[int]], id_type: Literal["proj", "exp"]):
-    if id_type == "proj":
-        proj_name = ""
-        for fn in os.listdir(output_dir):
-            if fn.startswith(f"proj_{ids}"):
-                proj_name = fn
-        if not proj_name:
-            raise RuntimeError("")
-        return proj_name
-
-    if id_type == "exp":
-        proj_name, exp_name = "", ""
-        for fn1 in os.listdir(output_dir):
-            if fn1.startswith(f"proj_{ids[0]}"):
-                proj_name = fn1
-                for fn2 in os.listdir(osp.join(output_dir, fn1)):
-                    if fn2.startswith(f"exp_{ids[1]}"):
-                        exp_name = fn2
-        if not proj_name:
-            raise RuntimeError("")
-        if not exp_name:
-            raise RuntimeError("")
-        return proj_name, exp_name
+from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 
 class _EntityBase:
     entity_type: Literal["proj", "exp", "run"]
 
     def __init__(self, relative_dir: str, name: str, desc: str, record_file_path: str, output_dir: str):
-        self.global_id: int = get_next_id(relative_dir, id_type=self.entity_type)
+        self.global_id: int = self.get_next_id(relative_dir)
 
         self.name = f"{self.entity_type}_{self.global_id}_{name}"
         self.desc = desc
@@ -100,18 +29,50 @@ class _EntityBase:
 
         self._extra_record_data = {}
 
-    def print_message(self, storage_path):
-        print(f"{self.entity_type}: {self.name} created, storage path: {storage_path}")
+    @rank_zero_only
+    def _create_dir(self, target_dir, print_message=True):
+        os.mkdir(target_dir)
+        if print_message:
+            print(f"{self.entity_type}: {self.name} created, storage path: {target_dir}")
 
-    # ################# Setter and getter for extra record data, which allows for save custom data.
+    # =========== Setter and getter for extra record data, which allows for save custom data. ===========
     def set_extra_record_data(self, **kwargs):
         self._extra_record_data.update(kwargs)
         self._update_record_entry()
 
     def get_extra_record_data(self, key: str):
         return self._extra_record_data[key]
+    # ====================================================================================================
 
-    # ###############
+    @staticmethod
+    @abstractmethod
+    def get_next_id(target_dir) -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def get_proj_name_from_id(output_dir, proj_id):
+        proj_name = ""
+        for fn in os.listdir(output_dir):
+            if fn.startswith(f"proj_{proj_id}"):
+                proj_name = fn
+        if not proj_name:
+            raise RuntimeError(f"Project with id {proj_id} NOT FOUND in {output_dir}.")
+        return proj_name
+
+    @staticmethod
+    def get_proj_exp_names_from_ids(output_dir, proj_id, exp_id):
+        proj_name, exp_name = "", ""
+        for fn1 in os.listdir(output_dir):
+            if fn1.startswith(f"proj_{proj_id}"):
+                proj_name = fn1
+                for fn2 in os.listdir(osp.join(output_dir, fn1)):
+                    if fn2.startswith(f"exp_{exp_id}"):
+                        exp_name = fn2
+        if not proj_name:
+            raise RuntimeError(f"Project with id {proj_id} NOT FOUND in {output_dir}.")
+        if not exp_name:
+            raise RuntimeError(f"Experiment with id {exp_id} NOT FOUND in {osp.join(output_dir, proj_name)}.")
+        return proj_name, exp_name
 
     @abstractmethod
     def _get_record_dict(self) -> dict:
@@ -123,6 +84,7 @@ class _EntityBase:
         return record_dict
 
     @abstractmethod
+    @rank_zero_only
     def _write_new_record_entry(self):
         raise NotImplementedError
 
@@ -141,10 +103,17 @@ class Project(_EntityBase):
         super().__init__(relative_dir=output_dir, name=name, desc=desc,
                          record_file_path="", output_dir=output_dir)
         self.proj_dir = osp.join(output_dir, self.name)
-        os.mkdir(self.proj_dir)
+        self._create_dir(self.proj_dir)
         self.record_file_path = osp.join(self.proj_dir, self.name + ".json")
         self._write_new_record_entry()
-        self.print_message(self.proj_dir)
+
+    @staticmethod
+    def get_next_id(output_dir) -> int:
+        indices = []
+        for i in os.listdir(output_dir):
+            if i.startswith(Project.entity_type + '_'):
+                indices.append(int(i.split('_')[1]))
+        return 1 if len(indices) == 0 else (max(indices) + 1)
 
     def _get_record_dict(self) -> dict:
         return {
@@ -156,11 +125,13 @@ class Project(_EntityBase):
             "Exps": []
         }
 
+    @rank_zero_only
     def _write_new_record_entry(self):
         with open(self.record_file_path, 'w') as f:
             print(self._get_record_dict())
             json.dump(self._get_record_entry(), f, indent=2)
 
+    @rank_zero_only
     def _update_record_entry(self):
         with open(self.record_file_path, 'r') as f:
             record = json.load(f)
@@ -173,7 +144,7 @@ class Experiment(_EntityBase):
     entity_type = "exp"
 
     def __init__(self, name: str, desc: str, proj_id: int, output_dir: str):
-        proj_name = get_name_from_id(output_dir, proj_id, id_type="proj")
+        proj_name = Experiment.get_proj_name_from_id(output_dir, proj_id)
         self.proj_dir = osp.join(output_dir, proj_name)
 
         super().__init__(relative_dir=self.proj_dir, name=name, desc=desc,
@@ -181,15 +152,22 @@ class Experiment(_EntityBase):
                          output_dir=output_dir)
 
         self.exp_dir = osp.join(self.proj_dir, self.name)
-        os.mkdir(self.exp_dir)
-        os.mkdir(osp.join(self.exp_dir, "archived_configs"))  # the directory for archived configs
-
+        self._create_dir(self.exp_dir)
+        # Create the directory for archived configs
+        self._create_dir(osp.join(self.exp_dir, "archived_configs"), print_message=False)
         self._write_new_record_entry()
-        self.print_message(self.exp_dir)
+
+    @staticmethod
+    def get_next_id(proj_dir) -> int:
+        indices = []
+        for i in os.listdir(proj_dir):
+            if i.startswith(Experiment.entity_type + '_'):
+                indices.append(int(i.split('_')[1]))
+        return 1 if len(indices) == 0 else (max(indices) + 1)
 
     @staticmethod
     def get_archived_configs_dir(proj_id: int, exp_id: int, output_dir: str):
-        proj_name, exp_name = get_name_from_id(output_dir, [proj_id, exp_id], id_type="exp")
+        proj_name, exp_name = Experiment.get_proj_exp_names_from_ids(output_dir, proj_id, exp_id)
         return osp.join(output_dir, proj_name, exp_name, "archived_configs")
 
     def _get_record_dict(self) -> dict:
@@ -201,6 +179,7 @@ class Experiment(_EntityBase):
             "Runs": []
         }
 
+    @rank_zero_only
     def _write_new_record_entry(self):
         with open(self.record_file_path, 'r') as f:
             record = json.load(f)
@@ -208,6 +187,7 @@ class Experiment(_EntityBase):
         with open(self.record_file_path, 'w') as f:
             json.dump(record, f, indent=2)
 
+    @rank_zero_only
     def _update_record_entry(self):
         with open(self.record_file_path, 'r') as f:
             record = json.load(f)
@@ -245,7 +225,7 @@ class Run(_EntityBase):
                 self.global_id = int(run_name.split('_')[1])
                 self.name = run_name
                 self._read_from_record_file()
-                self._process_metrics_csv()
+                Run._process_metrics_csv(self.run_dir)
             else:
                 warnings.warn(f"The original run id CAN NOT be induced from {resume_from}, "
                               f"a new run will be created.")
@@ -254,51 +234,25 @@ class Run(_EntityBase):
             self._create_new_run(name, desc, proj_id, exp_id, output_dir)
 
     def _create_new_run(self, name: str, desc: str, proj_id: int, exp_id: int, output_dir: str):
-        self.proj_name, self.exp_name = get_name_from_id(output_dir, [proj_id, exp_id], id_type="exp")
+        self.proj_name, self.exp_name = Run.get_proj_exp_names_from_ids(output_dir, proj_id, exp_id)
         self.proj_dir = osp.join(output_dir, self.proj_name)
         self.exp_dir = osp.join(self.proj_dir, self.exp_name)
         super().__init__(relative_dir=self.proj_dir, name=name, desc=desc,
                          record_file_path=osp.join(self.proj_dir, self.proj_name + ".json"),
                          output_dir=output_dir)
         self.run_dir = osp.join(self.exp_dir, self.name)
-
-        os.mkdir(self.run_dir)
+        self._create_dir(self.run_dir)
         self._write_new_record_entry()
-        self.print_message(self.run_dir)
 
-    # ############# Dealing with pytorch_lightning.loggers.CSVLogger's metrics.csv
-    def _process_metrics_csv(self):
-        """
-        Since pytorch_lightning.loggers.CSVLogger will override previous "metrics.csv",
-        special process is needed when resuming fit to avoid "metrics.csv" being overridden.
-        """
-        metrics_csv_path = osp.join(self.run_dir, "metrics.csv")
-        if osp.exists(metrics_csv_path):
-            # Rename the original "metrics.csv" to "metrics_<max_cnt>.csv",
-            # to reserve the filename "metrics.csv" for future fit resuming.
-            max_cnt = get_next_id(self.run_dir, id_type='metrics_csv')
-            shutil.move(metrics_csv_path,
-                        metrics_csv_path[:-4] + f"_{max_cnt}.csv")
-
-    @rank_zero_only
-    def merge_metrics_csv(self):
-        """
-        Merge multiple metrics_csv (if any) into "merged_metrics.csv".
-        """
-        metrics_csv_files = [filename for filename in os.listdir(self.run_dir)
-                             if filename.startswith("metrics_") and filename.endswith(".csv")]
-        metrics_csv_files.sort(key=lambda x: int(osp.splitext(x)[0].split('_')[1]))
-        if osp.exists(osp.join(self.run_dir, "metrics.csv")):
-            metrics_csv_files.append("metrics.csv")
-        if len(metrics_csv_files) > 1:
-            with open(osp.join(self.run_dir, "merged_metrics.csv"), 'w') as merged_metrics_csv:
-                for csv_idx, csv_filename in enumerate(metrics_csv_files):
-                    with open(osp.join(self.run_dir, csv_filename)) as metrics_csv:
-                        if csv_idx != 0:
-                            next(metrics_csv)  # skip the csv header to avoid repetition
-                        merged_metrics_csv.write(metrics_csv.read())
-
-    # ######################################################
+    @staticmethod
+    def get_next_id(proj_dir) -> int:
+        indices = []
+        for i in os.listdir(proj_dir):
+            if i.startswith("exp_") and osp.isdir(osp.join(proj_dir, i)):
+                for j in os.listdir(osp.join(proj_dir, i)):
+                    if j.startswith("run_"):
+                        indices.append(int(j.split('_')[1]))
+        return 1 if len(indices) == 0 else (max(indices) + 1)
 
     def _get_record_dict(self) -> dict:
         return {
@@ -324,6 +278,7 @@ class Run(_EntityBase):
                         for key in self._get_record_dict().keys():
                             del self._extra_record_data[key]
 
+    @rank_zero_only
     def _write_new_record_entry(self):
         with open(self.record_file_path, 'r') as f:
             record = json.load(f)
@@ -333,6 +288,7 @@ class Run(_EntityBase):
         with open(self.record_file_path, 'w') as f:
             json.dump(record, f, indent=2)
 
+    @rank_zero_only
     def _update_record_entry(self):
         with open(self.record_file_path, 'r') as f:
             record = json.load(f)
@@ -343,3 +299,85 @@ class Run(_EntityBase):
                             run.update(self._extra_record_data)
         with open(self.record_file_path, 'w') as f:
             json.dump(record, f, indent=2)
+
+    # ================== Dealing with pytorch_lightning.loggers.CSVLogger's metrics.csv ==================
+    @staticmethod
+    @rank_zero_only
+    def _process_metrics_csv(run_dir):
+        """
+        Since pytorch_lightning.loggers.CSVLogger will override previous "metrics.csv",
+        special process is needed when resuming fit to avoid "metrics.csv" being overridden.
+        """
+        metrics_csv_path = osp.join(run_dir, "metrics.csv")
+        if osp.exists(metrics_csv_path):
+            # Rename the original "metrics.csv" to "metrics_<max_cnt>.csv",
+            # to reserve the filename "metrics.csv" for future fit resuming.
+            indices = []
+            for filename in os.listdir(run_dir):
+                match = re.match(r"metrics_(\d+).csv", filename)
+                if match:
+                    indices.append(int(match.group(1)))
+            max_cnt = 1 if len(indices) == 0 else max(indices)
+            shutil.move(metrics_csv_path,
+                        metrics_csv_path[:-4] + f"_{max_cnt}.csv")
+
+    @staticmethod
+    @rank_zero_only
+    def merge_metrics_csv(run_dir):
+        """
+        Merge multiple metrics_csv (if any) into "merged_metrics.csv".
+        """
+        metrics_csv_files = [filename for filename in os.listdir(run_dir)
+                             if filename.startswith("metrics_") and filename.endswith(".csv")]
+        metrics_csv_files.sort(key=lambda x: int(osp.splitext(x)[0].split('_')[1]))
+        if osp.exists(osp.join(run_dir, "metrics.csv")):
+            metrics_csv_files.append("metrics.csv")
+        if len(metrics_csv_files) > 1:
+            with open(osp.join(run_dir, "merged_metrics.csv"), 'w') as merged_metrics_csv:
+                for csv_idx, csv_filename in enumerate(metrics_csv_files):
+                    with open(osp.join(run_dir, csv_filename)) as metrics_csv:
+                        if csv_idx != 0:
+                            next(metrics_csv)  # skip the csv header to avoid repetition
+                        merged_metrics_csv.write(metrics_csv.read())
+    # =====================================================================================================
+
+    # ================================== Exported Methods for Saving Files. ==================================
+    @staticmethod
+    @rank_zero_only
+    def save_hparams(run_dir, hparams: OrderedDict):
+        """
+        Save hparams to json files. "hparams.json" always indicates the latest, similar to "metrics.csv".
+        """
+        hparams_json_path = osp.join(run_dir, "hparams.json")
+        if osp.exists(hparams_json_path):
+            indices = []
+            for filename in os.listdir(run_dir):
+                match = re.match(r"hparams_(\d+).json", filename)
+                if match:
+                    indices.append(int(match.group(1)))
+
+            max_cnt = 1 if len(indices) == 0 else max(indices) + 1
+            shutil.move(hparams_json_path, hparams_json_path[:-4] + f"_{max_cnt}.json")
+
+        with open(hparams_json_path, 'w') as f:
+            json.dump(hparams, f, indent=2)
+
+    @staticmethod
+    @rank_zero_only
+    def remove_empty_hparams_yaml(run_dir):
+        # Remove the empty "hparams.yaml" generated by PyTorch-Lightning
+        hparams_yaml_path = osp.join(run_dir, "hparams.yaml")
+        needs_removed = False
+        if osp.exists(hparams_yaml_path):
+            with open(hparams_yaml_path) as f:
+                if f.read().strip() == "{}":
+                    needs_removed = True
+        if needs_removed:
+            os.remove(hparams_yaml_path)
+
+    @staticmethod
+    @rank_zero_only
+    def save_model_structure(run_dir, model):
+        with open(osp.join(run_dir, "model_structure.txt"), 'w') as f:
+            f.write(repr(model))
+    # =========================================================================================================

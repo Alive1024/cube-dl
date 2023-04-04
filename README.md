@@ -45,7 +45,6 @@ project
 配置文件中使用相对路径导入 config components
 
 To Do List:
-- [ ] 追踪超参数
 - [ ] 补充 docstring
 - [ ] tune
 - [ ] write run chains 

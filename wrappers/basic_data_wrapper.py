@@ -83,6 +83,3 @@ class BasicDataWrapper(LightningDataModule):
     def predict_dataloader(self):
         return DataLoader(self.dataset_predict, batch_size=self.batch_size,
                           num_workers=self.dataloader_num_workers)
-
-    def get_hyperparameters(self) -> dict:
-        pass
