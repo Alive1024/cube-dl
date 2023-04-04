@@ -7,7 +7,8 @@ from pytorch_lightning import LightningModule
 
 
 class BasicTaskWrapper(LightningModule):
-    def __init__(self, *,
+    def __init__(self,
+                 *,  # Compulsory keyword arguments, for better readability in config files.
                  model: nn.Module,
                  loss_function: Union[nn.Module, Callable[[torch.Tensor, torch.Tensor], torch.Tensor]],
                  optimizer: torch.optim.Optimizer,

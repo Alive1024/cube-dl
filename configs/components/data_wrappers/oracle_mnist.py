@@ -7,7 +7,7 @@ from datasets.oracle_mnist import OracleMNISTMemoryDataset
 def get_data_wrapper_instance() -> BasicDataWrapper:
     data_dir = "data/Oracle-MNIST"
     return BasicDataWrapper(
-        batch_size=64,
+        default_batch_size=64,
         dataset_fit=OracleMNISTMemoryDataset(data_dir=data_dir,
                                              split="train",
                                              transform=transforms.Compose([

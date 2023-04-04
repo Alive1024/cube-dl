@@ -7,36 +7,40 @@ from pytorch_lightning import LightningDataModule
 
 
 class BasicDataWrapper(LightningDataModule):
-    def __init__(self, *,
-                 batch_size: int,
-                 dataset_fit: Dataset,
-                 dataset_test: Dataset,
+    def __init__(self,
+                 *,  # Compulsory keyword arguments, for better readability in config files.
+                 # Batch sizes
+                 default_batch_size: int = 8,
+                 fit_batch_size: Optional[int] = None,
+                 val_batch_size: Optional[int] = None,
+                 test_batch_size: Optional[int] = None,
+                 predict_batch_size: Optional[int] = None,
+                 # Dataset classes
+                 dataset_fit: Optional[Dataset] = None,
                  dataset_val: Optional[Dataset] = None,
+                 dataset_test: Optional[Dataset] = None,
                  dataset_predict: Optional[Dataset] = None,
+                 # Other arguments
                  dataloader_num_workers: int = os.cpu_count(),
                  auto_split_train_val: Optional[Union[float, int]] = None
                  ):
         """
-
-        :param batch_size:
-        :param dataset_fit:
-        :param dataset_test:
-        :param dataset_val:
-        :param dataset_predict:
-        :param auto_split_train_val:
         """
         super(BasicDataWrapper, self).__init__()
 
-        self.batch_size = batch_size
-        self.dataloader_num_workers = dataloader_num_workers
+        self.default_batch_size = default_batch_size
+        self.fit_batch_size = fit_batch_size if fit_batch_size else default_batch_size
+        self.val_batch_size = val_batch_size if val_batch_size else default_batch_size
+        self.test_batch_size = test_batch_size if test_batch_size else default_batch_size
+        self.predict_batch_size = predict_batch_size if predict_batch_size else default_batch_size
 
         self.dataset_fit = dataset_fit
         self.dataset_val = dataset_val
         self.dataset_test = dataset_test
         self.dataset_predict = dataset_predict
-        self.auto_split_train_val = auto_split_train_val
 
-        # TODO 直接在文件上进行 predict
+        self.dataloader_num_workers = dataloader_num_workers
+        self.auto_split_train_val = auto_split_train_val
 
     def prepare_data(self):
         pass
@@ -69,17 +73,17 @@ class BasicDataWrapper(LightningDataModule):
                   f"ratio: {train_ratio} : {val_ratio}, quantity: {len(self.dataset_fit)} : {len(self.dataset_val)}")
 
     def train_dataloader(self):
-        return DataLoader(self.dataset_fit, batch_size=self.batch_size, shuffle=True,
+        return DataLoader(self.dataset_fit, batch_size=self.fit_batch_size, shuffle=True,
                           num_workers=self.dataloader_num_workers)
 
     def val_dataloader(self):
-        return DataLoader(self.dataset_val, batch_size=self.batch_size,
+        return DataLoader(self.dataset_val, batch_size=self.val_batch_size,
                           num_workers=self.dataloader_num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.dataset_test, batch_size=self.batch_size,
+        return DataLoader(self.dataset_test, batch_size=self.test_batch_size,
                           num_workers=self.dataloader_num_workers)
 
     def predict_dataloader(self):
-        return DataLoader(self.dataset_predict, batch_size=self.batch_size,
+        return DataLoader(self.dataset_predict, batch_size=self.predict_batch_size,
                           num_workers=self.dataloader_num_workers)

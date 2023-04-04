@@ -405,7 +405,7 @@ class RootConfig:
     # =====================================================================================================
 
     # ================================ Methods for Archiving Config Files ================================
-    # Manner 1: Save all the config files into a directory (and compress it into a zip),
+    # ========== Manner 1: Save all the config files into a directory (and compress it into a zip),
     # keeping the directory structure.
     @staticmethod
     def _ensure_dir_exist(dir_path, as_python_package=True):
@@ -466,7 +466,7 @@ class RootConfig:
                                 format="zip", root_dir=save_dir)
             shutil.rmtree(save_dir)
 
-    # Manner 2: Merge the configs into single file.
+    # ========== Manner 2: Merge the configs into single file.
     @staticmethod
     def _get_import_statements_from_getter(getter_func, excludes) -> List[str]:
         """
@@ -572,7 +572,7 @@ class RootConfig:
                 f.writelines(all_import_statements)
                 f.writelines(['\n', '\n'])
 
-                # =========== Source code ===========
+                # =========== Source Code ===========
                 if model_getter:
                     f.write(inspect.getsource(model_getter) + "\n\n")
 
