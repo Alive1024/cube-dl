@@ -9,6 +9,7 @@ from root_config import RootConfig
 from entities import Project, Experiment, Run
 
 OUTPUT_DIR = "./outputs"
+GLOBAL_SEED = 42
 
 JOB_TYPES = ("fit", "validate", "test", "predict", "tune")
 
@@ -76,8 +77,8 @@ def _exec(args):
                          "please provide the argument `--test-predict-ckpt`. Run `python main.py -h` to learn more.")
     # ================================================================================
 
-    pl.seed_everything(42)
-    config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
+    pl.seed_everything(GLOBAL_SEED)
+    root_config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
 
     # ============================ Archive the Config Files ============================
     if not args.fit_resumes_from:
@@ -85,19 +86,19 @@ def _exec(args):
                                                                    output_dir=OUTPUT_DIR)
         start_run_id = Run.get_next_id(proj_dir=osp.join(OUTPUT_DIR,
                                                          Project.get_proj_name_from_id(OUTPUT_DIR, args.proj_id)))
-        # config_instance.archive_config_into_dir_or_zip(root_config_getter,
-        #                                                archived_configs_dir=archived_configs_dir,
-        #                                                start_run_id=start_run_id,
-        #                                                end_start_id=start_run_id + len(runs) - 1)
-        config_instance.archive_config_into_single(root_config_getter,
-                                                   archived_configs_dir=archived_configs_dir,
-                                                   start_run_id=start_run_id,
-                                                   end_start_id=start_run_id + len(runs) - 1)
+        # root_config_instance.archive_config_into_dir_or_zip(root_config_getter,
+        #                                                     archived_configs_dir=archived_configs_dir,
+        #                                                     start_run_id=start_run_id,
+        #                                                     end_start_id=start_run_id + len(runs) - 1)
+        root_config_instance.archive_config_into_single(root_config_getter,
+                                                        archived_configs_dir=archived_configs_dir,
+                                                        start_run_id=start_run_id,
+                                                        end_start_id=start_run_id + len(runs) - 1)
     # ==================================================================================
 
     # ============================ Executing the Runs ============================
     # Set up the task wrapper and the data wrapper.
-    config_instance.setup_wrappers()
+    root_config_instance.setup_wrappers()
 
     for idx, job_type in enumerate(runs):
         print("\n\n", "*" * 35, f"Launching {job_type}, ({idx + 1}/{len(runs)})", "*" * 35, '\n')
@@ -106,13 +107,13 @@ def _exec(args):
                   job_type=job_type, output_dir=OUTPUT_DIR, resume_from=args.fit_resumes_from)
 
         # Set up the trainer(s) for the current run.
-        config_instance.setup_trainer(logger_arg=args.logger, run=run)
+        root_config_instance.setup_trainer(logger_arg=args.logger, run=run)
 
         if job_type == "fit":
-            _check_trainer(config_instance.fit_trainer, job_type)
-            config_instance.fit_trainer.fit(
-                model=config_instance.task_wrapper,
-                datamodule=config_instance.data_wrapper,
+            _check_trainer(root_config_instance.fit_trainer, job_type)
+            root_config_instance.fit_trainer.fit(
+                model=root_config_instance.task_wrapper,
+                datamodule=root_config_instance.data_wrapper,
                 ckpt_path=args.fit_resumes_from
             )
             # Merge multiple metrics_csv (if any) into "merged_metrics.csv" after fit exits
@@ -121,41 +122,41 @@ def _exec(args):
             Run.remove_empty_hparams_yaml(run.run_dir)
 
         elif job_type == "validate":
-            _check_trainer(config_instance.validate_trainer, job_type)
-            config_instance.validate_trainer.validate(
-                model=config_instance.task_wrapper,
-                datamodule=config_instance.data_wrapper
+            _check_trainer(root_config_instance.validate_trainer, job_type)
+            root_config_instance.validate_trainer.validate(
+                model=root_config_instance.task_wrapper,
+                datamodule=root_config_instance.data_wrapper
             )
         elif job_type == "test":
-            _check_trainer(config_instance.test_trainer, job_type)
+            _check_trainer(root_config_instance.test_trainer, job_type)
 
             # If the test job_type appears before fit
             if _check_test_predict_before_fit(runs, idx) and args.test_predict_ckpt != "none":
                 # Load the specified checkpoint
-                loaded_task_wrapper = config_instance.task_wrapper.__class__.load_from_checkpoint(
+                loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
                     args.test_predict_ckpt,
-                    **config_instance.task_wrapper.get_init_args()
+                    **root_config_instance.task_wrapper.get_init_args()
                 )
-                config_instance.task_wrapper = loaded_task_wrapper  # update the task wrapper
+                root_config_instance.task_wrapper = loaded_task_wrapper  # update the task wrapper
 
             # Otherwise, do nothing, just keep the model state unchanged.
-            config_instance.test_trainer.test(
-                model=config_instance.task_wrapper,
-                datamodule=config_instance.data_wrapper
+            root_config_instance.test_trainer.test(
+                model=root_config_instance.task_wrapper,
+                datamodule=root_config_instance.data_wrapper
             )
         elif job_type == "predict":
-            _check_trainer(config_instance.predict_trainer, job_type)
+            _check_trainer(root_config_instance.predict_trainer, job_type)
             # Same as "test"
             if _check_test_predict_before_fit(runs, idx) and args.test_predict_ckpt != "none":
-                loaded_task_wrapper = config_instance.task_wrapper.__class__.load_from_checkpoint(
+                loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
                     args.test_predict_ckpt,
-                    **config_instance.task_wrapper.get_init_args()
+                    **root_config_instance.task_wrapper.get_init_args()
                 )
-                config_instance.task_wrapper = loaded_task_wrapper
+                root_config_instance.task_wrapper = loaded_task_wrapper
 
-            config_instance.predict_trainer.predict(
-                model=config_instance.task_wrapper,
-                datamodule=config_instance.data_wrapper
+            root_config_instance.predict_trainer.predict(
+                model=root_config_instance.task_wrapper,
+                datamodule=root_config_instance.data_wrapper
             )
         elif job_type == "tune":
             # TODO
