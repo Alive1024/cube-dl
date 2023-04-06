@@ -1,6 +1,7 @@
 import os
 import os.path as osp
 import sys
+import typing
 from typing import Optional, Callable, Union, Iterable, List, Literal
 import inspect
 import shutil
@@ -13,13 +14,17 @@ from functools import partial
 
 import pytorch_lightning as pl
 from pytorch_lightning.tuner.tuning import Tuner
-from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger  # noqa
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 from entities import Run
 
 
 class RootConfig:
+    JOB_TYPES = ("fit", "validate", "test", "predict", "tune")
+    JOB_TYPES_T = Literal["fit", "validate", "test", "predict", "tune"]
+    TRAINER_TYPES_T = Literal["default", JOB_TYPES_T]
+
     # Directly supported loggers
     LOGGERS = ("CSV", "TensorBoard", "wandb")
 
@@ -59,7 +64,7 @@ class RootConfig:
 
         # A "structured" (nested) dict containing the hparams needed to be logged.
         self._hparams = OrderedDict()
-        self._cur_run_job_type: Literal["fit", "validate", "test", "predict"] = "fit"
+        self._cur_run_job_type: RootConfig.JOB_TYPES_T = "fit"
         # ============================================================
 
         # ======================== Getters ========================
@@ -161,7 +166,7 @@ class RootConfig:
         try:
             sys.setprofile(collect_fn)
             yield  # separate `__enter__` and `__exit__`
-        except BaseException:
+        except BaseException:   # noqa
             print(traceback.format_exc())
             exit(1)
         finally:
@@ -312,7 +317,7 @@ class RootConfig:
         Some loggers support for logging hyper-parameters, call their APIS here.
         """
         if "wandb" in loggers:
-            import wandb
+            import wandb    # noqa
             wandb.config.update(hparams)
 
     # ======================================================================================================
@@ -338,31 +343,19 @@ class RootConfig:
                                                               name=run.exp_name,
                                                               version=run.name))
                 elif logger_name == "wandb":
+                    import wandb    # noqa
                     # Call `wandb.finish()` before instantiating `WandbLogger` to avoid reusing the wandb run if there
                     # has been already created wandb run in progress, as indicated by wandb 's UserWarning.
-                    import wandb
                     wandb.finish()
-                    if run.is_resuming:
-                        wandb_logger = WandbLogger(save_dir=run.proj_dir,
-                                                   name=run.name,  # display name for the run
-                                                   # The name of the project to which this run will belong:
-                                                   project=osp.split(run.proj_dir)[1],
-                                                   group=run.exp_name,  # use exp_name to group runs
-                                                   job_type=run.job_type,
-                                                   id=run.get_extra_record_data("wandb_run_id"), resume="must"
-                                                   )
-                    else:
-                        # Generate a run id and save it to the record file for future fit resuming.
-                        wandb_run_id = wandb.sdk.lib.runid.generate_id()
-                        run.set_extra_record_data(wandb_run_id=wandb_run_id)
-                        wandb_logger = WandbLogger(save_dir=run.proj_dir,
-                                                   name=run.name,  # display name for the run
-                                                   # The name of the project to which this run will belong:
-                                                   project=osp.split(run.proj_dir)[1],
-                                                   group=run.exp_name,  # use exp_name to group runs
-                                                   job_type=run.job_type,
-                                                   id=wandb_run_id
-                                                   )
+                    get_wandb_logger = partial(WandbLogger,
+                                               save_dir=run.proj_dir,
+                                               name=run.name,  # display name for the run
+                                               # The name of the project to which this run will belong:
+                                               project=osp.split(run.proj_dir)[1],
+                                               group=run.exp_name,  # use exp_name to group runs
+                                               job_type=run.job_type,
+                                               id=run.global_id)
+                    wandb_logger = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
                     logger_instances.append(wandb_logger)
 
         return loggers, logger_instances
@@ -424,10 +417,8 @@ class RootConfig:
 
     @rank_zero_only
     def archive_config_into_dir_or_zip(self, root_config_getter: Callable, archived_configs_dir: str,
-                                       start_run_id: int, end_start_id: int,
-                                       compress=True):
-        archived_config_dirname = f"archived_config_run_{start_run_id}" if start_run_id == end_start_id \
-            else f"archived_config_run_{start_run_id}-{end_start_id}"
+                                       start_run_id: str, to_zip=True):
+        archived_config_dirname = f"archived_config_run_{start_run_id}"
 
         save_dir = osp.join(archived_configs_dir, archived_config_dirname)
         if not osp.exists(save_dir):
@@ -461,7 +452,7 @@ class RootConfig:
         for trainer in self._trainers.values():
             RootConfig._copy_file_from_getter(trainer["getter"], trainers_dir)
 
-        if compress:
+        if to_zip:
             shutil.make_archive(base_name=osp.join(osp.dirname(save_dir), osp.split(save_dir)[1]),
                                 format="zip", root_dir=save_dir)
             shutil.rmtree(save_dir)
@@ -502,7 +493,7 @@ class RootConfig:
 
     @staticmethod
     def _adapt_trainer_src(trainer_getter_func, root_config_src,
-                           kind: Literal["default", "fit", "validate", "test", "predict"]):
+                           kind: TRAINER_TYPES_T):
         """
         Adapt the code of trainer getter, wrapping it to a class's static method.
         And adapt the code of root config correspondingly.
@@ -532,11 +523,9 @@ class RootConfig:
         return True
 
     @rank_zero_only
-    def archive_config_into_single(self, root_config_getter: Callable, archived_configs_dir: str,
-                                   start_run_id: int, end_start_id: int):
+    def archive_config_into_single(self, root_config_getter: Callable, archived_configs_dir: str, start_run_id: str):
         """ Save archived config to single file. """
-        archived_config_filename = f"archived_config_run_{start_run_id}.py" if start_run_id == end_start_id \
-            else f"archived_config_run_{start_run_id}-{end_start_id}.py"
+        archived_config_filename = f"archived_config_run_{start_run_id}.py"
 
         # If all the configs are from the same file, merging processing is no more needed.
         if self._check_configs_from_same_file(root_config_getter):

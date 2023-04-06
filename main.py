@@ -2,16 +2,33 @@ import os.path as osp
 import argparse
 import importlib
 import re
+from typing import Literal
 
 import pytorch_lightning as pl
+from rich.console import Console
+from rich.table import Table
+from rich.columns import Columns
 
 from root_config import RootConfig
-from entities import Project, Experiment, Run
+from entities import Project, Experiment, Run, generate_id, get_all_projects_exps, get_projects, get_exps_of
 
-OUTPUT_DIR = "./outputs"
+# ========================== Unusual Options ==========================
+# These options are unusual, do not need to be modified in most cases.
+
+# The root directory of all output products,
+# the default is the "outputs" directory in the entire project root directory.
+OUTPUT_DIR = osp.join(osp.dirname(osp.splitext(__file__)[0]), "outputs")
+
+# The global seed of random numbers.
 GLOBAL_SEED = 42
 
-JOB_TYPES = ("fit", "validate", "test", "predict", "tune")
+# The format of archived configs,
+#   - "SINGLE_PY":
+#   - "ZIP":
+#   - "DIR":
+# The default is "SINGLE_PY"
+ARCHIVED_CONFIGS_FORMAT: Literal["SINGLE_PY", "ZIP", "DIR"] = "SINGLE_PY"
+# =======================================================================
 
 
 def _check_trainer(trainer: pl.Trainer, job_type: str):
@@ -61,12 +78,63 @@ def _add_exp(args):
     Experiment(name=args.exp_name, desc=args.exp_desc, proj_id=args.proj_id, output_dir=OUTPUT_DIR)
 
 
+def _ls(args):
+    console = Console()
+    table = Table(show_header=True, header_style="bold blue", width=console.width)
+
+    # Print all projects and exps
+    if args.all:
+        projects_exps = get_all_projects_exps(OUTPUT_DIR)
+        ratios = (8, 12, 20, 10, 50)
+        if len(projects_exps) > 0:
+            # Add header to the outer table
+            for idx, outer_column_name in enumerate(projects_exps[0].keys()):
+                table.add_column(outer_column_name, overflow="fold", ratio=ratios[idx])
+
+            for proj in projects_exps:
+                inner_table = Table(show_header=True, header_style="bold green")
+                if len(proj["Exps"]) > 0:
+                    # Add header to the inner table
+                    for idx, inner_column_name in enumerate(proj["Exps"][0].keys()):
+                        inner_table.add_column(inner_column_name, overflow="fold", ratio=ratios[idx])
+                    # Add rows to the inner table
+                    for exp in proj["Exps"]:
+                        inner_table.add_row(*list(exp.values()))
+
+                # Add rows to the outer table
+                table.add_row(*list(proj.values())[:-1], Columns([inner_table]))
+
+    # Print all projects
+    elif args.proj:
+        projects = get_projects(OUTPUT_DIR)
+        if len(projects) > 0:
+            for column_name in projects[0].keys():
+                table.add_column(column_name, overflow="fold")
+            for proj in projects:
+                table.add_row(*list(proj.values()))
+        else:
+            print(f"There is no project in \"{OUTPUT_DIR}\".")
+
+    # Print all exps of the specified proj
+    else:
+        exps = get_exps_of(OUTPUT_DIR, args.exp_of)
+        if len(exps) > 0:
+            for column_name in exps[0].keys():
+                table.add_column(column_name, overflow="fold")
+            for exp in exps:
+                table.add_row(*list(exp.values()))
+        else:
+            print(f"There is no exp of proj with ID \"{args.exp_of}\" in \"{OUTPUT_DIR}\".")
+
+    console.print(table)
+
+
 def _exec(args):
     # ============================ Checking Arguments ============================
     runs: list = re.split(r"[\s,]+", args.runs)
     for job_type in runs:
-        if job_type not in JOB_TYPES:
-            raise ValueError(f"Unrecognized job_type: `{job_type}`, please choose from {JOB_TYPES}.")
+        if job_type not in RootConfig.JOB_TYPES:
+            raise ValueError(f"Unrecognized job_type: `{job_type}`, please choose from {RootConfig.JOB_TYPES}.")
 
     if ("fit" not in runs) and (args.fit_resumes_from is not None):
         raise ValueError("There is no `fit` in the runs but `--fit-resumes-from` are provided.")
@@ -80,20 +148,26 @@ def _exec(args):
     pl.seed_everything(GLOBAL_SEED)
     root_config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
 
+    start_run_id = generate_id()
     # ============================ Archive the Config Files ============================
     if not args.fit_resumes_from:
         archived_configs_dir = Experiment.get_archived_configs_dir(proj_id=args.proj_id, exp_id=args.exp_id,
                                                                    output_dir=OUTPUT_DIR)
-        start_run_id = Run.get_next_id(proj_dir=osp.join(OUTPUT_DIR,
-                                                         Project.get_proj_name_from_id(OUTPUT_DIR, args.proj_id)))
-        # root_config_instance.archive_config_into_dir_or_zip(root_config_getter,
-        #                                                     archived_configs_dir=archived_configs_dir,
-        #                                                     start_run_id=start_run_id,
-        #                                                     end_start_id=start_run_id + len(runs) - 1)
-        root_config_instance.archive_config_into_single(root_config_getter,
-                                                        archived_configs_dir=archived_configs_dir,
-                                                        start_run_id=start_run_id,
-                                                        end_start_id=start_run_id + len(runs) - 1)
+        if ARCHIVED_CONFIGS_FORMAT == "SINGLE_PY":
+            root_config_instance.archive_config_into_single(root_config_getter,
+                                                            archived_configs_dir=archived_configs_dir,
+                                                            start_run_id=start_run_id)
+        elif ARCHIVED_CONFIGS_FORMAT == "ZIP":
+            root_config_instance.archive_config_into_dir_or_zip(root_config_getter,
+                                                                archived_configs_dir=archived_configs_dir,
+                                                                start_run_id=start_run_id)
+        elif ARCHIVED_CONFIGS_FORMAT == "DIR":
+            root_config_instance.archive_config_into_dir_or_zip(root_config_getter,
+                                                                archived_configs_dir=archived_configs_dir,
+                                                                start_run_id=start_run_id,
+                                                                to_zip=False)
+        else:
+            raise ValueError(f"Unrecognized ARCHIVED_CONFIGS_FORMAT: {ARCHIVED_CONFIGS_FORMAT}")
     # ==================================================================================
 
     # ============================ Executing the Runs ============================
@@ -103,8 +177,9 @@ def _exec(args):
     for idx, job_type in enumerate(runs):
         print("\n\n", "*" * 35, f"Launching {job_type}, ({idx + 1}/{len(runs)})", "*" * 35, '\n')
 
+        run_id = start_run_id if idx == 0 else None
         run = Run(name=args.name, desc=args.desc, proj_id=args.proj_id, exp_id=args.exp_id,
-                  job_type=job_type, output_dir=OUTPUT_DIR, resume_from=args.fit_resumes_from)
+                  job_type=job_type, output_dir=OUTPUT_DIR, resume_from=args.fit_resumes_from, global_id=run_id)
 
         # Set up the trainer(s) for the current run.
         root_config_instance.setup_trainer(logger_arg=args.logger, run=run)
@@ -168,7 +243,7 @@ def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
-    # Subcommand: init
+    # ======================= Subcommand: init =======================
     parser_init = subparsers.add_parser("init", help="")
     parser_init.add_argument("-pn", "--proj-name", "--proj_name", type=str, required=True,
                              help="")
@@ -180,10 +255,9 @@ def main():
                              help="")
     parser_init.set_defaults(func=_init)
 
-    # Subcommand: add-exp
-    parser_exp = subparsers.add_parser("add-exp", help="Create an exp with an optional name and "
-                                                       "a compulsory description.")
-    parser_exp.add_argument("-p", "--proj-id", "--proj_id", type=int, required=True,
+    # ======================= Subcommand: add-exp =======================
+    parser_exp = subparsers.add_parser("add-exp", help="Create a new exp within specified proj.")
+    parser_exp.add_argument("-p", "--proj-id", "--proj_id", type=str, required=True,
                             help="")
     parser_exp.add_argument("-en", "--exp-name", "--exp_name", type=str, required=True,
                             help="The name of the experiment, it will be appended to the prefix: exp_{exp_id}.")
@@ -191,20 +265,32 @@ def main():
                             help="A description about the created exp.")
     parser_exp.set_defaults(func=_add_exp)
 
-    # Subcommand: exec
+    # ======================= Subcommand: ls =======================
+    parser_ls = subparsers.add_parser("ls", help="")
+    # These 3 params are exclusive to each other, and one of them is required.
+    param_group_ls = parser_ls.add_mutually_exclusive_group(required=True)
+    param_group_ls.add_argument("-a", "--all", action="store_true",
+                                help="")
+    param_group_ls.add_argument("-p", "--proj", action="store_true",
+                                help="")
+    param_group_ls.add_argument("-e", "--exp-of", "--exp_of", type=str,
+                                help="")
+    parser_ls.set_defaults(func=_ls)
+
+    # ======================= Subcommand: exec =======================
     parser_exec = subparsers.add_parser("exec", help="Execute the run(s)")
-    parser_exec.add_argument("-p", "--proj-id", "--proj_id", type=int, required=True,
+    parser_exec.add_argument("-p", "--proj-id", "--proj_id", type=str, required=True,
                              help="")
-    parser_exec.add_argument("-e", "--exp-id", "--exp_id", type=int, required=True,
+    parser_exec.add_argument("-e", "--exp-id", "--exp_id", type=str, required=True,
                              help="The experiment id of which the current run(s) belong to, "
                                   "create one at first if not any.")
 
     parser_exec.add_argument("-c", "--config-file", "--config_file", type=str, required=True,
                              help="Path to the config file")
     parser_exec.add_argument("-r", "--runs", type=str, required=True,
-                             help=f"A sequence of run. Choose from {JOB_TYPES} "
+                             help=f"A sequence of run. Choose from {RootConfig.JOB_TYPES} "
                                   "and combine arbitrarily, seperated by comma. e.g. \"tune,fit,test\" ")
-    parser_exec.add_argument("-n", "--name", type=str, default=None,
+    parser_exec.add_argument("-n", "--name", type=str, required=True,
                              help="The name of the current run(s), it will always have a prefix: run_{idx}.")
     parser_exec.add_argument("-d", "--desc", type=str, required=True,
                              help="A description about the current run(s).")

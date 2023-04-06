@@ -187,6 +187,10 @@ python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Ba
 
 向某个 proj 添加一个新的 exp
 
+### `ls`
+
+
+
 ### `exec`
 
 执行 run(s)
