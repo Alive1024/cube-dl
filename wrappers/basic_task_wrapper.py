@@ -1,12 +1,12 @@
 from typing import Iterable, Optional, Callable, Union, Dict
-import inspect
 
 import torch
 from torch import nn
-from pytorch_lightning import LightningModule
+
+from .wrapper_base import TaskWrapperBase
 
 
-class BasicTaskWrapper(LightningModule):
+class BasicTaskWrapper(TaskWrapperBase):
     def __init__(self,
                  *,  # Compulsory keyword arguments, for better readability in config files.
                  model: nn.Module,
@@ -83,12 +83,3 @@ class BasicTaskWrapper(LightningModule):
         metric_values = self._shared_eval_step(batch, batch_idx,
                                                metric_name_prefix="test", metrics=self.test_metrics)
         self.log_dict(metric_values)
-
-    def get_init_args(self) -> dict:
-        all_init_args: inspect.Signature = inspect.signature(self.__class__.__init__)
-        filtered_init_args = {}
-        for key in all_init_args.parameters.keys():
-            if key == "self":
-                continue
-            filtered_init_args[key] = getattr(self, key)
-        return filtered_init_args

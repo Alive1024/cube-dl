@@ -1,7 +1,6 @@
 import os
 import os.path as osp
 import sys
-import typing
 from typing import Optional, Callable, Union, Iterable, List, Literal
 import inspect
 import shutil
@@ -18,6 +17,7 @@ from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, Wand
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 from entities import Run
+from wrappers import TaskWrapperBase
 
 
 class RootConfig:
@@ -37,7 +37,7 @@ class RootConfig:
 
     def __init__(self,
                  *,  # Compulsory keyword arguments, for better readability in config files.
-                 task_wrapper_getter: Callable[[], pl.LightningModule],
+                 task_wrapper_getter: Callable[[], TaskWrapperBase],
                  data_wrapper_getter: Callable[[], pl.LightningDataModule],
                  default_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
                  fit_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
