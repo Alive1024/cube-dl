@@ -56,10 +56,9 @@ class RootConfig:
         self._data_wrapper_cls = None
         self._trainer_cls = None
 
-        # A "flat" dict used to temporarily store the produced local variables
-        # during instantiating the task_wrapper, data_wrapper and trainer.
-        # Its keys are the memory addresses of the objects,
-        # while its values are dicts containing the corresponding local variables' names and values.
+        # A "flat" dict used to temporarily store the produced local variables during instantiating the task_wrapper,
+        # data_wrapper and trainer. Its keys are the memory addresses of the objects, while its values are dicts
+        # containing the corresponding local variables' names and values.
         self._init_local_vars = {}
 
         # A "structured" (nested) dict containing the hparams needed to be logged.
@@ -185,9 +184,12 @@ class RootConfig:
 
         f_locals = frame.f_locals  # the local variables seen by the current stack frame, a dict
         if "self" in f_locals:
+            # Put the local variables into a dict, using the address as key. Note that the local variables include
+            # both arguments of `__init__` and variables defined within `__init__`.
             self._init_local_vars[id(f_locals["self"])] = f_locals
-            # The lowermost frame corresponds to the outermost object, i.e. a task wrapper object
+            # The lowermost frame corresponds to the outermost object, i.e. a task wrapper object.
             if type(f_locals["self"]) == self._task_wrapper_cls:
+                # Start parsing from the outermost object.
                 self._parse_frame_locals_into_hparams(f_locals, part_key="task_wrapper")
 
     def _collect_data_wrapper_frame_locals(self, frame, event, _):
@@ -221,7 +223,7 @@ class RootConfig:
             # corresponding to `__init__` contains the actual local variables we want.
             # Hence, there are two conditions needed to be met.
             if type(f_locals["self"]) == self._trainer_cls and frame.f_code.co_name == "__init__":
-                self._parse_frame_locals_into_hparams(f_locals, part_key=self._cur_run_job_type + "_trainer")
+                self._parse_frame_locals_into_hparams(f_locals, part_key=self._cur_run_job_type + "_trainer")   # noqa
 
     def _parse_frame_locals_into_hparams(self, locals_dict: dict,
                                          part_key: Literal["task_wrapper", "data_wrapper",
@@ -236,7 +238,7 @@ class RootConfig:
 
         def __parse_obj(key, value, dst: Union[OrderedDict, List]):
             """ Parsing general objects, used in `_parse_fn`. """
-            if id(value) in self._init_local_vars:
+            if id(value) in all_init_args:
                 new_dst = OrderedDict({
                     "type": str(value.__class__),  # class type
                     "args": OrderedDict()
@@ -245,10 +247,10 @@ class RootConfig:
                     dst[key] = new_dst
                 elif isinstance(dst, List):
                     dst.append(new_dst)
-                _parse_fn(key, self._init_local_vars[id(value)], new_dst["args"])
+                _parse_fn(key, all_init_args[id(value)], new_dst["args"])
 
         def _parse_fn(key, value, dst: Union[OrderedDict, List], exclusive_keys: Iterable = ("self",)):
-            # Get rid of specific key(s), "self" must be excluded, otherwise infinite recurse will happen.
+            # Get rid of specific key(s), "self" must be excluded, otherwise infinite recursion will happen.
             if key in exclusive_keys:
                 return
 
@@ -294,12 +296,14 @@ class RootConfig:
             else:
                 __parse_obj(key, value, dst)
 
-        # Delete those local variables which are not the args of `__init__`
-        for local_vars in self._init_local_vars.values():
-            init_param_names = inspect.signature(local_vars["self"].__class__.__init__).parameters.keys()
-            useless_var_names = set(local_vars.keys()) - set(init_param_names)
-            for name in useless_var_names:
-                del local_vars[name]
+        # Sift out the arguments of `__init__` from `self._init_local_vars`.
+        all_init_args = {}
+        for var_id, local_vars in self._init_local_vars.items():
+            all_init_args[var_id] = {}
+            # Get the names of arguments of `__init__` through its signature
+            init_args_names = inspect.signature(local_vars["self"].__class__.__init__).parameters.keys()
+            for arg_name in init_args_names:
+                all_init_args[var_id][arg_name] = local_vars[arg_name]
 
         self._hparams[part_key] = OrderedDict({
             "type": str(locals_dict["self"].__class__),
