@@ -238,6 +238,7 @@ class Experiment(_EntityBase):
 
 class Run(_EntityBase):
     ENTITY_TYPE = "run"
+    PREDICTIONS_DIR_PREFIX = "predictions"
 
     def __init__(self, name: str, desc: str, proj_id: int, exp_id: int, job_type: str,
                  output_dir: str, resume_from: Optional[str] = None, global_id: str = None):
@@ -246,9 +247,9 @@ class Run(_EntityBase):
         self.is_resuming = False
         if job_type == "fit" and resume_from:
             self.is_resuming = True
-            match_proj_name = re.search(r"[/\\](proj_\d+_.*?)[/\\]", resume_from)
-            match_exp_name = re.search(r"[/\\](exp_\d+_.*?)[/\\]", resume_from)
-            match_run_name = re.search(r"[/\\](run_\d+_.*?)[/\\]", resume_from)
+            match_proj_name = re.search(r"[/\\](proj_.+?_.*?)[/\\]", resume_from)
+            match_exp_name = re.search(r"[/\\](exp_.+?_.*?)[/\\]", resume_from)
+            match_run_name = re.search(r"[/\\](run_.+?_.*?)[/\\]", resume_from)
             if match_proj_name and match_exp_name and match_run_name:
                 self.proj_name = match_proj_name.group(1)
                 self.exp_name = match_exp_name.group(1)
@@ -260,7 +261,7 @@ class Run(_EntityBase):
                                           record_file_path=osp.join(self.proj_dir, self.proj_name + ".json"),
                                           output_dir=output_dir, global_id=global_id)
                 # Update attributes' values
-                self.global_id = int(run_name.split('_')[1])
+                self.global_id = run_name.split('_')[1]
                 self.name = run_name
                 self._read_from_record_file()
                 Run._process_metrics_csv(self.run_dir)
@@ -339,13 +340,13 @@ class Run(_EntityBase):
         metrics_csv_path = osp.join(run_dir, "metrics.csv")
         if osp.exists(metrics_csv_path):
             # Rename the original "metrics.csv" to "metrics_<max_cnt>.csv",
-            # to reserve the filename "metrics.csv" for future fit resuming.
+            # to reserve the filename "metrics.csv" when resuming fit.
             indices = []
             for filename in os.listdir(run_dir):
                 match = re.match(r"metrics_(\d+).csv", filename)
                 if match:
                     indices.append(int(match.group(1)))
-            max_cnt = 1 if len(indices) == 0 else max(indices)
+            max_cnt = 1 if len(indices) == 0 else max(indices) + 1
             shutil.move(metrics_csv_path,
                         metrics_csv_path[:-4] + f"_{max_cnt}.csv")
 
@@ -354,10 +355,12 @@ class Run(_EntityBase):
     def merge_metrics_csv(run_dir):
         """
         Merge multiple metrics_csv (if any) into "merged_metrics.csv".
+        The correct order is "metrics_1.csv" -> "metrics_2.csv" -> ... -> "metrics.csv".
         """
         metrics_csv_files = [filename for filename in os.listdir(run_dir)
                              if filename.startswith("metrics_") and filename.endswith(".csv")]
         metrics_csv_files.sort(key=lambda x: int(osp.splitext(x)[0].split('_')[1]))
+        # Append the latest one to the last.
         if osp.exists(osp.join(run_dir, "metrics.csv")):
             metrics_csv_files.append("metrics.csv")
         if len(metrics_csv_files) > 1:
@@ -385,7 +388,7 @@ class Run(_EntityBase):
                     indices.append(int(match.group(1)))
 
             max_cnt = 1 if len(indices) == 0 else max(indices) + 1
-            shutil.move(hparams_json_path, hparams_json_path[:-4] + f"_{max_cnt}.json")
+            shutil.move(hparams_json_path, osp.splitext(hparams_json_path)[0] + f"_{max_cnt}.json")
 
         with open(hparams_json_path, 'w') as f:
             Run._json_dump_to_file(hparams, f)
@@ -408,4 +411,12 @@ class Run(_EntityBase):
     def save_model_structure(run_dir, model):
         with open(osp.join(run_dir, "model_structure.txt"), 'w') as f:
             f.write(repr(model))
+
+    @staticmethod
+    @rank_zero_only
+    def mkdir_for_predictions(run_dir) -> str:
+        prediction_dir = osp.join(run_dir, f"{Run.PREDICTIONS_DIR_PREFIX}_"
+                                           f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+        os.mkdir(prediction_dir)
+        return prediction_dir
     # =========================================================================================================

@@ -1,4 +1,5 @@
 import inspect
+from abc import abstractmethod
 
 from pytorch_lightning import LightningModule
 
@@ -12,3 +13,8 @@ class TaskWrapperBase(LightningModule):
                 continue
             filtered_init_args[key] = getattr(self, key)
         return filtered_init_args
+
+    @staticmethod
+    @abstractmethod
+    def save_predictions(predictions, save_dir):
+        raise NotImplementedError

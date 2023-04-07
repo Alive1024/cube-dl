@@ -148,9 +148,10 @@ def _exec(args):
     pl.seed_everything(GLOBAL_SEED)
     root_config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
 
-    start_run_id = generate_id()
+    start_run_id = None
     # ============================ Archive the Config Files ============================
     if not args.fit_resumes_from:
+        start_run_id = generate_id()
         archived_configs_dir = Experiment.get_archived_configs_dir(proj_id=args.proj_id, exp_id=args.exp_id,
                                                                    output_dir=OUTPUT_DIR)
         if ARCHIVED_CONFIGS_FORMAT == "SINGLE_PY":
@@ -229,10 +230,11 @@ def _exec(args):
                 )
                 root_config_instance.task_wrapper = loaded_task_wrapper
 
-            root_config_instance.predict_trainer.predict(
+            predictions = root_config_instance.predict_trainer.predict(
                 model=root_config_instance.task_wrapper,
                 datamodule=root_config_instance.data_wrapper
             )
+            root_config_instance.task_wrapper.save_predictions(predictions, Run.mkdir_for_predictions(run.run_dir))
         elif job_type == "tune":
             # TODO
             raise NotImplementedError
@@ -267,7 +269,7 @@ def main():
 
     # ======================= Subcommand: ls =======================
     parser_ls = subparsers.add_parser("ls", help="")
-    # These 3 params are exclusive to each other, and one of them is required.
+    # These params are exclusive to each other, and one of them is required.
     param_group_ls = parser_ls.add_mutually_exclusive_group(required=True)
     param_group_ls.add_argument("-a", "--all", action="store_true",
                                 help="")

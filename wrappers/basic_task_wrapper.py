@@ -83,3 +83,8 @@ class BasicTaskWrapper(TaskWrapperBase):
         metric_values = self._shared_eval_step(batch, batch_idx,
                                                metric_name_prefix="test", metrics=self.test_metrics)
         self.log_dict(metric_values)
+
+    @staticmethod
+    def save_predictions(predictions, save_dir):
+        print("$" * 30)
+        print(type(predictions))
