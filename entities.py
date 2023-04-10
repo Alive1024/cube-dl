@@ -63,6 +63,27 @@ def get_exps_of(output_dir, proj_id, shorten_name=True) -> List[OrderedDict]:
     return exps
 
 
+def get_runs_of(output_dir, proj_id, exp_id, shorten_name=True) -> List[OrderedDict]:
+    runs = []
+    for name in os.listdir(output_dir):
+        if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
+            record_file_path = osp.join(output_dir, name, name + ".json")
+            with open(record_file_path) as f:
+                record = json.load(f)
+                for exp in record["Exps"]:
+                    if exp["Exp ID"] == exp_id:
+                        for run in exp["Runs"]:
+                            runs.append(OrderedDict({
+                                "Run ID": run["Run ID"],
+                                "Run Name": run["Run Name"].split('_')[-1] if shorten_name else run["Run Name"],
+                                "Run Description": run["Run Description"],
+                                "Create Time": run["Created Time"],
+                                "Job Type": run["Job Type"]
+                            }))
+                        break
+    return runs
+
+
 def get_all_projects_exps(output_dir, shorten_name=True) -> List[OrderedDict]:
     projects_exps = get_projects(output_dir, shorten_name=shorten_name)
     for proj in projects_exps:

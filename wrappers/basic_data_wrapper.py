@@ -73,17 +73,25 @@ class BasicDataWrapper(LightningDataModule):
                   f"ratio: {train_ratio} : {val_ratio}, quantity: {len(self.dataset_fit)} : {len(self.dataset_val)}")
 
     def train_dataloader(self):
+        if self.dataset_fit is None:
+            raise ValueError("The argument `dataset_fit` should be passed in to conduct fit.")
         return DataLoader(self.dataset_fit, batch_size=self.fit_batch_size, shuffle=True,
                           num_workers=self.dataloader_num_workers)
 
     def val_dataloader(self):
+        if self.dataset_val is None:
+            raise ValueError("The argument `dataset_val` should be passed in to conduct validation.")
         return DataLoader(self.dataset_val, batch_size=self.val_batch_size,
                           num_workers=self.dataloader_num_workers)
 
     def test_dataloader(self):
+        if self.dataset_test is None:
+            raise ValueError("The argument `dataset_test` should be passed in to conduct test.")
         return DataLoader(self.dataset_test, batch_size=self.test_batch_size,
                           num_workers=self.dataloader_num_workers)
 
     def predict_dataloader(self):
+        if self.dataset_predict is None:
+            raise ValueError("The argument `dataset_predict` should be passed in to conduct prediction.")
         return DataLoader(self.dataset_predict, batch_size=self.predict_batch_size,
                           num_workers=self.dataloader_num_workers)

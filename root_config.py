@@ -323,7 +323,6 @@ class RootConfig:
         if "wandb" in loggers:
             import wandb    # noqa
             wandb.config.update(hparams)
-
     # ======================================================================================================
 
     # ====================================== Methods for Setting up ======================================
@@ -399,7 +398,6 @@ class RootConfig:
         RootConfig._add_hparams_to_logger(loggers, self._hparams)
         Run.save_hparams(run.run_dir, self._hparams)
         self._hparams.clear()  # clear self._hparams after saved
-
     # =====================================================================================================
 
     # ================================ Methods for Archiving Config Files ================================

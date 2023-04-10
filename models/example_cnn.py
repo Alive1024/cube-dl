@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class ExampleCNN(nn.Module):
     def __init__(self, num_input_channels, num_classes):
-        super(ExampleCNN, self).__init__()
+        super().__init__()
         self.conv1 = torch.nn.Sequential(torch.nn.Conv2d(num_input_channels, 64, kernel_size=3, stride=1, padding=1),
                                          torch.nn.MaxPool2d(stride=2, kernel_size=2),
                                          torch.nn.ReLU(),

@@ -84,7 +84,10 @@ class BasicTaskWrapper(TaskWrapperBase):
                                                metric_name_prefix="test", metrics=self.test_metrics)
         self.log_dict(metric_values)
 
+    def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
+
+        return self.model(batch[0]) if isinstance(batch, list) and len(batch) == 2 else self.model(batch)
+
     @staticmethod
     def save_predictions(predictions, save_dir):
-        print("$" * 30)
-        print(type(predictions))
+        print(type(predictions), len(predictions), predictions[0].shape)
