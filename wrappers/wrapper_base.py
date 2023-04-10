@@ -18,3 +18,8 @@ class TaskWrapperBase(LightningModule):
     @abstractmethod
     def save_predictions(predictions, save_dir):
         raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def predict_from_raw_data(src_dir, save_dir):
+        raise NotImplementedError

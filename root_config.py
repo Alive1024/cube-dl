@@ -575,7 +575,7 @@ class RootConfig:
                     if trainer["getter"]:
                         trainer_src, root_config_src = RootConfig._adapt_trainer_src(trainer["getter"],
                                                                                      root_config_src,
-                                                                                     kind)
+                                                                                     kind)  # noqa
                         f.write(trainer_src + "\n\n")
                 f.write(root_config_src + '\n')
     # ======================================================================================================

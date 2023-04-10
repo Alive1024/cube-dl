@@ -85,9 +85,15 @@ class BasicTaskWrapper(TaskWrapperBase):
         self.log_dict(metric_values)
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
-
+        # Use data only if the batch consists of a pair of data and label
         return self.model(batch[0]) if isinstance(batch, list) and len(batch) == 2 else self.model(batch)
 
     @staticmethod
     def save_predictions(predictions, save_dir):
+        # TODO: implement `save_predictions`
         print(type(predictions), len(predictions), predictions[0].shape)
+
+    @staticmethod
+    def predict_from_raw_data(src_dir, save_dir):
+        # TODO: implement `predict_from_raw_data`
+        raise NotImplementedError
