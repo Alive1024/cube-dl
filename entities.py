@@ -262,7 +262,7 @@ class Run(_EntityBase):
     PREDICTIONS_DIR_PREFIX = "predictions"
 
     def __init__(self, name: str, desc: str, proj_id: int, exp_id: int, job_type: str,
-                 output_dir: str, resume_from: Optional[str] = None, global_id: str = None):
+                 output_dir: str, resume_from: Optional[str] = None):
         self.exp_id = exp_id
         self.job_type = job_type
         self.is_resuming = False
@@ -280,18 +280,15 @@ class Run(_EntityBase):
                 self.run_dir = osp.join(self.exp_dir, run_name)
                 super(Run, self).__init__(name=name, desc=desc,
                                           record_file_path=osp.join(self.proj_dir, self.proj_name + ".json"),
-                                          output_dir=output_dir, global_id=global_id)
-                # Update attributes' values
-                self.global_id = run_name.split('_')[1]
-                self.name = run_name
-                self._read_from_record_file()
+                                          output_dir=output_dir, global_id=run_name.split('_')[1])
+                self._read_from_record_file()  # update attributes' values
                 Run._process_metrics_csv(self.run_dir)
             else:
                 warnings.warn(f"The original run id CAN NOT be induced from {resume_from}, "
                               f"a new run will be created.")
-                self._create_new_run(name, desc, proj_id, exp_id, output_dir, global_id=global_id)
+                self._create_new_run(name, desc, proj_id, exp_id, output_dir)
         else:
-            self._create_new_run(name, desc, proj_id, exp_id, output_dir, global_id=global_id)
+            self._create_new_run(name, desc, proj_id, exp_id, output_dir)
 
     def _create_new_run(self, name: str, desc: str, proj_id: int, exp_id: int, output_dir: str, global_id: str = None):
         self.proj_name, self.exp_name = Run._get_proj_exp_names_from_ids(output_dir, proj_id, exp_id)

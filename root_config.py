@@ -419,8 +419,8 @@ class RootConfig:
 
     @rank_zero_only
     def archive_config_into_dir_or_zip(self, root_config_getter: Callable, archived_configs_dir: str,
-                                       start_run_id: str, to_zip=True):
-        archived_config_dirname = f"archived_config_run_{start_run_id}"
+                                       run_id: str, to_zip=True):
+        archived_config_dirname = f"archived_config_run_{run_id}"
 
         save_dir = osp.join(archived_configs_dir, archived_config_dirname)
         if not osp.exists(save_dir):
@@ -525,9 +525,9 @@ class RootConfig:
         return True
 
     @rank_zero_only
-    def archive_config_into_single(self, root_config_getter: Callable, archived_configs_dir: str, start_run_id: str):
+    def archive_config_into_single(self, root_config_getter: Callable, archived_configs_dir: str, run_id: str):
         """ Save archived config to single file. """
-        archived_config_filename = f"archived_config_run_{start_run_id}.py"
+        archived_config_filename = f"archived_config_run_{run_id}.py"
 
         # If all the configs are from the same file, merging processing is no more needed.
         if self._check_configs_from_same_file(root_config_getter):
