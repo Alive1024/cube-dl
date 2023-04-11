@@ -18,11 +18,8 @@ from collections import OrderedDict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 
-ENTITY_TYPE = Literal["proj", "exp", "run"]
-
-
 class _EntityBase:
-    ENTITY_TYPE: ENTITY_TYPE
+    ENTITY_TYPE: Literal["proj", "exp", "run"] = ""
 
     def __init__(self, name: str, desc: str, record_file_path: str, output_dir: str, global_id: str = None):
         self.global_id = generate_id() if not global_id else global_id
@@ -381,7 +378,7 @@ def generate_id(length: int = 8) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def _extract_short_name(full_name: str, prefix: ENTITY_TYPE):
+def _extract_short_name(full_name: str, prefix: _EntityBase.ENTITY_TYPE):
     match = re.match(prefix + r"_.+?_(.+)", full_name)
     if not match:
         raise ValueError(f"Not standard name: {full_name}!")
