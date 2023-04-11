@@ -18,79 +18,6 @@ from collections import OrderedDict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 
-def generate_id(length: int = 8) -> str:
-    """
-    Generate a random base-36 string of `length` digits.
-    Borrowed from `wandb.sdk.lib.runid.generate_id`.
-    """
-    # There are ~2.8T base-36 8-digit strings. If we generate 210k ids,
-    # we'll have a ~1% chance of collision.
-    alphabet = string.ascii_lowercase + string.digits
-    return "".join(secrets.choice(alphabet) for _ in range(length))
-
-
-def get_projects(output_dir, shorten_name=True) -> List[OrderedDict]:
-    projects = []
-    for name in os.listdir(output_dir):
-        if name.startswith(Project.ENTITY_TYPE + '_'):
-            record_file_path = osp.join(output_dir, name, name + ".json")
-            with open(record_file_path) as f:
-                record = json.load(f)
-                projects.append(OrderedDict({
-                    "Proj ID": record["Proj ID"],
-                    "Proj Name": record["Proj Name"].split('_')[-1] if shorten_name else record["Proj Name"],
-                    "Proj Description": record["Proj Description"],
-                    "Created Time": record["Created Time"],
-                }))
-    return projects
-
-
-def get_exps_of(output_dir, proj_id, shorten_name=True) -> List[OrderedDict]:
-    exps = []
-    for name in os.listdir(output_dir):
-        if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
-            record_file_path = osp.join(output_dir, name, name + ".json")
-            with open(record_file_path) as f:
-                record = json.load(f)
-                for exp in record["Exps"]:
-                    exps.append(OrderedDict({
-                        "Exp ID": exp["Exp ID"],
-                        "Exp Name": exp["Exp Name"].split('_')[-1] if shorten_name else exp["Exp Name"],
-                        "Exp Description": exp["Exp Description"],
-                        "Created Time": exp["Created Time"]
-                    }))
-            break
-    return exps
-
-
-def get_runs_of(output_dir, proj_id, exp_id, shorten_name=True) -> List[OrderedDict]:
-    runs = []
-    for name in os.listdir(output_dir):
-        if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
-            record_file_path = osp.join(output_dir, name, name + ".json")
-            with open(record_file_path) as f:
-                record = json.load(f)
-                for exp in record["Exps"]:
-                    if exp["Exp ID"] == exp_id:
-                        for run in exp["Runs"]:
-                            runs.append(OrderedDict({
-                                "Run ID": run["Run ID"],
-                                "Run Name": run["Run Name"].split('_')[-1] if shorten_name else run["Run Name"],
-                                "Run Description": run["Run Description"],
-                                "Create Time": run["Created Time"],
-                                "Job Type": run["Job Type"]
-                            }))
-                        break
-    return runs
-
-
-def get_all_projects_exps(output_dir, shorten_name=True) -> List[OrderedDict]:
-    projects_exps = get_projects(output_dir, shorten_name=shorten_name)
-    for proj in projects_exps:
-        proj["Exps"] = get_exps_of(output_dir, proj["Proj ID"], shorten_name=shorten_name)
-    return projects_exps
-
-
 class _EntityBase:
     ENTITY_TYPE: Literal["proj", "exp", "run"]
 
@@ -438,3 +365,87 @@ class Run(_EntityBase):
         os.mkdir(prediction_dir)
         return prediction_dir
     # =========================================================================================================
+
+
+def generate_id(length: int = 8) -> str:
+    """
+    Generate a random base-36 string of `length` digits.
+    Borrowed from `wandb.sdk.lib.runid.generate_id`.
+    """
+    # There are ~2.8T base-36 8-digit strings. If we generate 210k ids,
+    # we'll have a ~1% chance of collision.
+    alphabet = string.ascii_lowercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def _extract_short_name(full_name: str, prefix: _EntityBase.ENTITY_TYPE):
+    match = re.match(prefix + r"_.+?_(.+)", full_name)
+    if not match:
+        raise ValueError(f"Not standard name: {full_name}!")
+    return match.group(1)
+
+
+def get_projects(output_dir, shorten_name=True) -> List[OrderedDict]:
+    projects = []
+    for name in os.listdir(output_dir):
+        if name.startswith(Project.ENTITY_TYPE + '_'):
+            record_file_path = osp.join(output_dir, name, name + ".json")
+            with open(record_file_path) as f:
+                record = json.load(f)
+                projects.append(OrderedDict({
+                    "Proj ID": record["Proj ID"],
+                    "Proj Name": _extract_short_name(record["Proj Name"],
+                                                     Project.ENTITY_TYPE) if shorten_name else record["Proj Name"],
+                    "Proj Description": record["Proj Description"],
+                    "Created Time": record["Created Time"],
+                }))
+    return projects
+
+
+def get_exps_of(output_dir, proj_id, shorten_name=True) -> List[OrderedDict]:
+    exps = []
+    for name in os.listdir(output_dir):
+        if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
+            record_file_path = osp.join(output_dir, name, name + ".json")
+            with open(record_file_path) as f:
+                record = json.load(f)
+                for exp in record["Exps"]:
+                    exps.append(OrderedDict({
+                        "Exp ID": exp["Exp ID"],
+                        "Exp Name": _extract_short_name(exp["Exp Name"],
+                                                        Experiment.ENTITY_TYPE) if shorten_name else exp["Exp Name"],
+                        "Exp Description": exp["Exp Description"],
+                        "Created Time": exp["Created Time"]
+                    }))
+            break
+    return exps
+
+
+def get_runs_of(output_dir, proj_id, exp_id, shorten_name=True) -> List[OrderedDict]:
+    runs = []
+    for name in os.listdir(output_dir):
+        if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
+            record_file_path = osp.join(output_dir, name, name + ".json")
+            with open(record_file_path) as f:
+                record = json.load(f)
+                for exp in record["Exps"]:
+                    if exp["Exp ID"] == exp_id:
+                        for run in exp["Runs"]:
+                            runs.append(OrderedDict({
+                                "Run ID": run["Run ID"],
+                                "Run Name": _extract_short_name(run["Run Name"],
+                                                                Run.ENTITY_TYPE) if shorten_name else run["Run Name"],
+                                "Run Description": run["Run Description"],
+                                "Create Time": run["Created Time"],
+                                "Job Type": run["Job Type"]
+                            }))
+                        break
+    return runs
+
+
+def get_all_projects_exps(output_dir, shorten_name=True) -> List[OrderedDict]:
+    projects_exps = get_projects(output_dir, shorten_name=shorten_name)
+    for proj in projects_exps:
+        proj["Exps"] = get_exps_of(output_dir, proj["Proj ID"], shorten_name=shorten_name)
+    return projects_exps
+
