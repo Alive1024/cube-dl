@@ -93,7 +93,6 @@ class BasicTaskWrapper(TaskWrapperBase):
         # TODO: implement `save_predictions`
         print(type(predictions), len(predictions), predictions[0].shape)
 
-    @staticmethod
-    def predict_from_raw_data(src_dir, save_dir):
+    def predict_from_raw_data(self, src_dir, save_dir):
         # TODO: implement `predict_from_raw_data`
         raise NotImplementedError

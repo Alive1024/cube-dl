@@ -1,10 +1,10 @@
 import inspect
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 from pytorch_lightning import LightningModule
 
 
-class TaskWrapperBase(LightningModule):
+class TaskWrapperBase(LightningModule, metaclass=ABCMeta):
     def get_init_args(self) -> dict:
         all_init_args: inspect.Signature = inspect.signature(self.__class__.__init__)
         filtered_init_args = {}
@@ -17,9 +17,8 @@ class TaskWrapperBase(LightningModule):
     @staticmethod
     @abstractmethod
     def save_predictions(predictions, save_dir):
-        raise NotImplementedError
+        pass
 
-    @staticmethod
     @abstractmethod
-    def predict_from_raw_data(src_dir, save_dir):
-        raise NotImplementedError
+    def predict_from_raw_data(self, src_dir, save_dir):
+        pass
