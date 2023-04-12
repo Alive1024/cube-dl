@@ -5,7 +5,7 @@ Dealing with directories, filenames
 import os
 import os.path as osp
 from datetime import datetime
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Literal, Optional, List
 import re
 import warnings
@@ -18,7 +18,7 @@ from collections import OrderedDict
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 
-class _EntityBase:
+class _EntityBase(metaclass=ABCMeta):
     ENTITY_TYPE: Literal["proj", "exp", "run"] = ""
 
     def __init__(self, name: str, desc: str, record_file_path: str, output_dir: str, global_id: str = None):
@@ -39,7 +39,7 @@ class _EntityBase:
 
     @staticmethod
     def _json_dump_to_file(obj, fp):
-        json.dump(obj, fp, indent=2)
+        json.dump(obj, fp, indent=2, ensure_ascii=False)
 
     # =========== Setter and getter for extra record data, which allows for save custom data. ===========
     def set_extra_record_data(self, **kwargs):
@@ -54,8 +54,9 @@ class _EntityBase:
     def _get_proj_name_from_id(output_dir, proj_id):
         proj_name = ""
         for fn in os.listdir(output_dir):
-            if fn.startswith(f"proj_{proj_id}_"):
+            if fn.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
                 proj_name = fn
+                break
         if not proj_name:
             raise RuntimeError(f"Project with id {proj_id} NOT FOUND in {output_dir}.")
         return proj_name
@@ -64,11 +65,13 @@ class _EntityBase:
     def _get_proj_exp_names_from_ids(output_dir, proj_id, exp_id):
         proj_name, exp_name = "", ""
         for outer_name in os.listdir(output_dir):
-            if outer_name.startswith(f"proj_{proj_id}_"):
+            if outer_name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
                 proj_name = outer_name
                 for inner_name in os.listdir(osp.join(output_dir, outer_name)):
-                    if inner_name.startswith(f"exp_{exp_id}_"):
+                    if inner_name.startswith(f"{Experiment.ENTITY_TYPE}_{exp_id}_"):
                         exp_name = inner_name
+                        break
+                break
         if not proj_name:
             raise RuntimeError(f"Project with id {proj_id} NOT FOUND in {output_dir}.")
         if not exp_name:
@@ -121,15 +124,15 @@ class Project(_EntityBase):
 
     @rank_zero_only
     def _write_new_record_entry(self):
-        with open(self.record_file_path, 'w') as f:
+        with open(self.record_file_path, 'w', encoding="utf-8") as f:
             Project._json_dump_to_file(self._get_record_entry(), f)
 
     @rank_zero_only
     def _update_record_entry(self):
-        with open(self.record_file_path, 'r') as f:
+        with open(self.record_file_path, 'r', encoding="utf-8") as f:
             record = json.load(f)
             record.update(self._extra_record_data)
-        with open(self.record_file_path, 'w') as f:
+        with open(self.record_file_path, 'w', encoding="utf-8") as f:
             Project._json_dump_to_file(record, f)
 
 
@@ -167,20 +170,20 @@ class Experiment(_EntityBase):
 
     @rank_zero_only
     def _write_new_record_entry(self):
-        with open(self.record_file_path, 'r') as f:
+        with open(self.record_file_path, 'r', encoding="utf-8") as f:
             record = json.load(f)
             record["Exps"].append(self._get_record_entry())
-        with open(self.record_file_path, 'w') as f:
+        with open(self.record_file_path, 'w', encoding="utf-8") as f:
             Experiment._json_dump_to_file(record, f)
 
     @rank_zero_only
     def _update_record_entry(self):
-        with open(self.record_file_path, 'r') as f:
+        with open(self.record_file_path, 'r', encoding="utf-8") as f:
             record = json.load(f)
             for exp in record["Exps"]:
                 if exp["Exp ID"] == self.global_id:
                     exp.update(self._extra_record_data)
-        with open(self.record_file_path, 'w') as f:
+        with open(self.record_file_path, 'w', encoding="utf-8") as f:
             Experiment._json_dump_to_file(record, f)
 
 
@@ -238,7 +241,7 @@ class Run(_EntityBase):
         }
 
     def _read_from_record_file(self):
-        with open(self.record_file_path, 'r') as f:
+        with open(self.record_file_path, 'r', encoding="utf-8") as f:
             record = json.load(f)
         for exp in record["Exps"]:
             if exp["Exp ID"] == self.exp_id:
@@ -254,24 +257,24 @@ class Run(_EntityBase):
 
     @rank_zero_only
     def _write_new_record_entry(self):
-        with open(self.record_file_path, 'r') as f:
+        with open(self.record_file_path, 'r', encoding="utf-8") as f:
             record = json.load(f)
             for exp in record["Exps"]:
                 if exp["Exp ID"] == self.exp_id:
                     exp["Runs"].append(self._get_record_entry())
-        with open(self.record_file_path, 'w') as f:
+        with open(self.record_file_path, 'w', encoding="utf-8") as f:
             Run._json_dump_to_file(record, f)
 
     @rank_zero_only
     def _update_record_entry(self):
-        with open(self.record_file_path, 'r') as f:
+        with open(self.record_file_path, 'r', encoding="utf-8") as f:
             record = json.load(f)
             for exp in record["Exps"]:
                 if exp["Exp ID"] == self.exp_id:
                     for run in exp["Runs"]:
                         if run["Run ID"] == self.global_id:
                             run.update(self._extra_record_data)
-        with open(self.record_file_path, 'w') as f:
+        with open(self.record_file_path, 'w', encoding="utf-8") as f:
             Run._json_dump_to_file(record, f)
 
     # ================== Dealing with pytorch_lightning.loggers.CSVLogger's metrics.csv ==================
@@ -335,7 +338,7 @@ class Run(_EntityBase):
             max_cnt = 1 if len(indices) == 0 else max(indices) + 1
             shutil.move(hparams_json_path, osp.splitext(hparams_json_path)[0] + f"_{max_cnt}.json")
 
-        with open(hparams_json_path, 'w') as f:
+        with open(hparams_json_path, 'w', encoding="utf-8") as f:
             Run._json_dump_to_file(hparams, f)
 
     @staticmethod
@@ -390,7 +393,7 @@ def get_projects(output_dir, shorten_name=True) -> List[OrderedDict]:
     for name in os.listdir(output_dir):
         if name.startswith(Project.ENTITY_TYPE + '_'):
             record_file_path = osp.join(output_dir, name, name + ".json")
-            with open(record_file_path) as f:
+            with open(record_file_path, encoding="utf-8") as f:
                 record = json.load(f)
                 projects.append(OrderedDict({
                     "Proj ID": record["Proj ID"],
@@ -407,7 +410,7 @@ def get_exps_of(output_dir, proj_id, shorten_name=True) -> List[OrderedDict]:
     for name in os.listdir(output_dir):
         if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
             record_file_path = osp.join(output_dir, name, name + ".json")
-            with open(record_file_path) as f:
+            with open(record_file_path, encoding="utf-8") as f:
                 record = json.load(f)
                 for exp in record["Exps"]:
                     exps.append(OrderedDict({
@@ -426,7 +429,7 @@ def get_runs_of(output_dir, proj_id, exp_id, shorten_name=True) -> List[OrderedD
     for name in os.listdir(output_dir):
         if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
             record_file_path = osp.join(output_dir, name, name + ".json")
-            with open(record_file_path) as f:
+            with open(record_file_path, encoding="utf-8") as f:
                 record = json.load(f)
                 for exp in record["Exps"]:
                     if exp["Exp ID"] == exp_id:
