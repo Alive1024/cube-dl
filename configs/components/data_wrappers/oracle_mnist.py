@@ -4,7 +4,7 @@ from wrappers import BasicDataWrapper
 from datasets.oracle_mnist import OracleMNISTMemoryDataset
 
 
-def get_data_wrapper_instance() -> BasicDataWrapper:
+def get_data_wrapper_instance():
     data_dir = "data/Oracle-MNIST"
     test_predict_dataset = OracleMNISTMemoryDataset(data_dir=data_dir,
                                                     split="t10k",

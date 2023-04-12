@@ -48,11 +48,11 @@ def __get_root_config_instance(config_file_path, return_getter=False):
         import_path = import_path[:-3]
 
     try:
-        root_config_getter = getattr(importlib.import_module(import_path), RootConfig.CONFIG_GETTER_NAME)
+        root_config_getter = getattr(importlib.import_module(import_path), RootConfig.ROOT_CONFIG_GETTER_NAME)
         config_instance: RootConfig = root_config_getter()
     except AttributeError:
-        raise AttributeError(f"Expected a function called `{RootConfig.CONFIG_GETTER_NAME}` in your root config file, "
-                             f"like `def {RootConfig.CONFIG_GETTER_NAME}(): ...`")
+        raise AttributeError(f"Expected a function called `{RootConfig.ROOT_CONFIG_GETTER_NAME}` in your root config "
+                             f"file, like `def {RootConfig.ROOT_CONFIG_GETTER_NAME}(): ...`")
     return (config_instance, root_config_getter) if return_getter else config_instance
 
 

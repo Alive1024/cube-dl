@@ -6,7 +6,7 @@ from wrappers import BasicTaskWrapper
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
-def get_task_wrapper_instance() -> BasicTaskWrapper:
+def get_task_wrapper_instance():
     model = get_model_instance()
     loss_func = nn.NLLLoss()
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)

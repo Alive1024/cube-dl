@@ -451,4 +451,3 @@ def get_all_projects_exps(output_dir, shorten_name=True) -> List[OrderedDict]:
     for proj in projects_exps:
         proj["Exps"] = get_exps_of(output_dir, proj["Proj ID"], shorten_name=shorten_name)
     return projects_exps
-
