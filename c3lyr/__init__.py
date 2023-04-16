@@ -18,7 +18,7 @@ __all__ = ["Project", "Experiment", "Run", "EntityFactory", "DAOFactory", "Entit
 
 class EntityFactory:
     """
-    Exported factory class for producing entity objects.
+    Exported factory class for producing new entity objects.
     """
 
     @staticmethod
@@ -59,8 +59,8 @@ class EntityFactory:
 
 class DAOFactory:
     """
-    Exported factory class for producing specified DAO objects.
-    JSON implementation is used for now.
+    Exported factory class for producing DAO objects.
+    These DAO objects' details depend on concrete implementation, JSON implementation is used for now.
     """
 
     @staticmethod
