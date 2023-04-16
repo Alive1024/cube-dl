@@ -3,9 +3,11 @@ from torch import nn
 from torchmetrics.classification import MulticlassAccuracy
 
 from wrappers import BasicTaskWrapper
+from config_decorators import task_wrapper_getter
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
+@task_wrapper_getter(model_getter_func=get_model_instance)
 def get_task_wrapper_instance():
     model = get_model_instance()
     loss_func = nn.NLLLoss()

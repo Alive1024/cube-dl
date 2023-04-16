@@ -10,7 +10,6 @@ import traceback
 import ast
 from functools import partial
 
-from torch import nn
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger  # noqa
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
@@ -32,7 +31,6 @@ class RootConfig:
 
     def __init__(self,
                  *,  # Compulsory keyword arguments, for better readability in config files.
-                 model_getter: Callable[[], nn.Module],
                  task_wrapper_getter: Callable[[], TaskWrapperBase],
                  data_wrapper_getter: Callable[[], pl.LightningDataModule],
                  default_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
@@ -58,7 +56,11 @@ class RootConfig:
         # ============================================================
 
         # ======================== Getters ========================
-        self.model_getter = model_getter
+        self.model_getter = getattr(task_wrapper_getter, "model_getter_func", None)
+        if self.model_getter is None:
+            raise ValueError("The model getter must be provided using the decorator `task_wrapper_getter` "
+                             "when defined the task wrapper, e.g. "
+                             "`@task_wrapper_getter(model_getter_func=get_model_instance): ...`")
         self.task_wrapper_getter = task_wrapper_getter
         self.data_wrapper_getter = data_wrapper_getter
         self.default_trainer_getter = default_trainer_getter
@@ -151,7 +153,7 @@ class RootConfig:
             return
 
         f_locals = frame.f_locals  # the local variables seen by the current stack frame, a dict
-        if "self" in f_locals:     # for normal objects, there must be "self"
+        if "self" in f_locals:  # for normal objects, there must be "self"
             # Put the local variables into a dict, using the address as key. Note that the local variables include
             # both arguments of `__init__` and variables defined within `__init__`.
             self._init_local_vars[id(f_locals["self"])] = f_locals
@@ -302,8 +304,9 @@ class RootConfig:
         Some loggers support for logging hyper-parameters, call their APIS here.
         """
         if "wandb" in loggers:
-            import wandb    # noqa
+            import wandb  # noqa
             wandb.config.update(hparams)
+
     # ======================================================================================================
 
     # ====================================== Methods for Setting up ======================================
@@ -389,6 +392,7 @@ class RootConfig:
         RootConfig._add_hparams_to_logger(loggers, self._hparams)
         EntityFSIO.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
         self._hparams.clear()  # clear self._hparams after saved
+
     # =====================================================================================================
 
     # ================================ Methods for Archiving Config Files ================================
@@ -409,7 +413,7 @@ class RootConfig:
             shutil.copyfile(original_file_path, osp.join(dst_dir, osp.split(original_file_path)[1]))
 
     @rank_zero_only
-    def archive_config_into_dir_or_zip(self, root_config_getter: Callable, archived_configs_dir: str,
+    def archive_config_into_dir_or_zip(self, root_config_getter_func: Callable, archived_configs_dir: str,
                                        run_id: str, to_zip=True):
         archived_config_dirname = f"archived_config_run_{run_id}"
 
@@ -417,7 +421,7 @@ class RootConfig:
         if not osp.exists(save_dir):
             os.mkdir(save_dir)
 
-        RootConfig._copy_file_from_getter(root_config_getter, save_dir)
+        RootConfig._copy_file_from_getter(root_config_getter_func, save_dir)
 
         components_dir = osp.join(save_dir, "components")
         RootConfig._ensure_dir_exist(components_dir)
@@ -500,9 +504,9 @@ class RootConfig:
                                                     f"{kind}_trainer_getter={cls_name}."
                                                     f"{trainer_getter_func.__name__}")
 
-    def _check_configs_from_same_file(self, root_config_getter) -> bool:
+    def _check_configs_from_same_file(self, root_config_getter_func) -> bool:
         """ Check whether the configs are from the same source file. """
-        root_config_src_path = inspect.getsourcefile(root_config_getter)
+        root_config_src_path = inspect.getsourcefile(root_config_getter_func)
         if inspect.getsourcefile(self.task_wrapper_getter) != root_config_src_path:
             return False
         if inspect.getsourcefile(self.data_wrapper_getter) != root_config_src_path:
@@ -514,13 +518,13 @@ class RootConfig:
         return True
 
     @rank_zero_only
-    def archive_config_into_single(self, root_config_getter: Callable, archived_configs_dir: str, run_id: str):
+    def archive_config_into_single(self, root_config_getter_func: Callable, archived_configs_dir: str, run_id: str):
         """ Save archived config to single file. """
         archived_config_filename = f"archived_config_run_{run_id}.py"
 
         # If all the configs are from the same file, merging processing is no more needed.
-        if self._check_configs_from_same_file(root_config_getter):
-            shutil.copyfile(inspect.getsourcefile(root_config_getter),
+        if self._check_configs_from_same_file(root_config_getter_func):
+            shutil.copyfile(inspect.getsourcefile(root_config_getter_func),
                             osp.join(archived_configs_dir, archived_config_filename))
         else:
             # The unnecessary import statements for task wrapper, data wrapper and trainer(s) should be removed.
@@ -544,7 +548,7 @@ class RootConfig:
                 for trainer in self._trainers.values():
                     all_import_statements.extend(get_import_statements(trainer["getter"]))
 
-                all_import_statements.extend(get_import_statements(root_config_getter))
+                all_import_statements.extend(get_import_statements(root_config_getter_func))
                 all_import_statements = set(all_import_statements)  # avoid duplicate imports
                 f.writelines(all_import_statements)
                 f.writelines(['\n', '\n'])
@@ -554,7 +558,7 @@ class RootConfig:
                 f.write(inspect.getsource(self.task_wrapper_getter) + "\n\n")
                 f.write(inspect.getsource(self.data_wrapper_getter) + "\n\n")
 
-                root_config_src = inspect.getsource(root_config_getter)
+                root_config_src = inspect.getsource(root_config_getter_func)
                 # Adapt the source code of trainer(s) to solve potential name conflicts
                 # when specifying multiple trainers.
                 for kind, trainer in self._trainers.items():

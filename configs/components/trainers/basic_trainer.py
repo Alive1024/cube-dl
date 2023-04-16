@@ -4,7 +4,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks import RichProgressBar, ModelCheckpoint
 from pytorch_lightning.loggers import Logger
 
+from config_decorators import trainer_getter
 
+
+@trainer_getter
 def get_trainer_instance(logger: Union[Logger, Iterable[Logger], bool]):
     return pl.Trainer(
         # accelerator="mps",

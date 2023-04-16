@@ -1,9 +1,11 @@
 from torchvision import transforms
 
 from wrappers import BasicDataWrapper
+from config_decorators import data_wrapper_getter
 from datasets.oracle_mnist import OracleMNISTMemoryDataset
 
 
+@data_wrapper_getter
 def get_data_wrapper_instance():
     data_dir = "data/Oracle-MNIST"
     test_predict_dataset = OracleMNISTMemoryDataset(data_dir=data_dir,
