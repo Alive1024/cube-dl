@@ -19,9 +19,6 @@ from c3lyr import EntityFactory, DAOFactory, EntityFSIO
 # the default is the "outputs" directory in the entire project root directory.
 OUTPUT_DIR = osp.join(osp.dirname(osp.splitext(__file__)[0]), "outputs")
 
-# The global seed of random numbers.
-GLOBAL_SEED = 42
-
 # The format of archived configs,
 #   - "SINGLE_PY":
 #   - "ZIP":
@@ -148,14 +145,14 @@ def _ls(args: argparse.Namespace):
 
 
 def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
-    pl.seed_everything(GLOBAL_SEED)
     root_config_instance, root_config_getter = __get_root_config_instance(args.config_file, return_getter=True)
+
+    pl.seed_everything(root_config_instance.global_seed)
 
     # Set up the task wrapper and the data wrapper.
     root_config_instance.setup_wrappers()
 
     run_dao = DAOFactory.get_run_dao()
-
     # When resuming fit, the run should resume from the original.
     if job_type == "resume-fit":
         proj_id, exp_id, run_id = run_dao.parse_ids_from_ckpt_path(args.resume_from)

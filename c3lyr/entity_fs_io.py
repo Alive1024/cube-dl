@@ -67,7 +67,7 @@ class EntityFSIO:
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Saving Files. >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @staticmethod
     @rank_zero_only
-    def save_hparams(run_dir, hparams: OrderedDict):
+    def save_hparams(run_dir, hparams: OrderedDict, **kwargs):
         """
         Save hparams to json files. "hparams.json" always indicates the latest, similar to "metrics.csv".
         """
@@ -82,6 +82,7 @@ class EntityFSIO:
             max_cnt = 1 if len(indices) == 0 else max(indices) + 1
             shutil.move(hparams_json_path, osp.splitext(hparams_json_path)[0] + f"_{max_cnt}.json")
 
+        hparams.update(kwargs)
         with open(hparams_json_path, 'w', encoding="utf-8") as f:
             json.dump(hparams, f, indent=2)
 

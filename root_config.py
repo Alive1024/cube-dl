@@ -12,7 +12,6 @@ from functools import partial
 
 from torch import nn
 import pytorch_lightning as pl
-from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger  # noqa
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
@@ -41,7 +40,7 @@ class RootConfig:
                  validate_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
                  test_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
                  predict_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
-                 tuner: Tuner = None,
+                 global_seed: int = 42
                  ):
         if (not default_trainer_getter) and (not fit_trainer_getter) and (not validate_trainer_getter) \
                 and (not test_trainer_getter) and (not predict_trainer_getter):
@@ -76,7 +75,7 @@ class RootConfig:
         self.validate_trainer: Optional[pl.Trainer] = None
         self.test_trainer: Optional[pl.Trainer] = None
         self.predict_trainer: Optional[pl.Trainer] = None
-        self.tuner = tuner
+
         # Organize the trainers into a dict, convenient for enumeration and extension.
         self._trainers = OrderedDict({
             "default": OrderedDict({
@@ -100,6 +99,8 @@ class RootConfig:
             }),
         })
         # ===================================================================
+
+        self.global_seed = global_seed
 
     # =============================== Methods for Tracking Hyper Parameters ===============================
     @contextmanager
@@ -386,7 +387,7 @@ class RootConfig:
                 self.predict_trainer = self.predict_trainer_getter(logger_instances)
 
         RootConfig._add_hparams_to_logger(loggers, self._hparams)
-        EntityFSIO.save_hparams(run.run_dir, self._hparams)
+        EntityFSIO.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
         self._hparams.clear()  # clear self._hparams after saved
     # =====================================================================================================
 
