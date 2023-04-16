@@ -58,7 +58,6 @@ class BasicDataWrapper(LightningDataModule):
             original_train_set_len = len(self.dataset_fit)
             if type(self.auto_split_train_val) == float:
                 train_ratio, val_ratio = self.auto_split_train_val, 1 - self.auto_split_train_val
-                train_len, val_len = original_train_set_len * train_ratio, original_train_set_len * val_ratio
                 self.dataset_fit, self.dataset_val = random_split(self.dataset_fit,
                                                                   [train_ratio, val_ratio],
                                                                   generator=torch.Generator().manual_seed(42))
