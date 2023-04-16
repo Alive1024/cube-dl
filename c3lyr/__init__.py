@@ -1,5 +1,5 @@
 """
-"c3ly" stands for "Core Triple Layers".
+"c3lyr" stands for "Core Triple Layers".
 This package implements the triple layer concepts: project, experiment and run.
 """
 
