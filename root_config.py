@@ -4,7 +4,6 @@ import sys
 from typing import Optional, Callable, Union, Iterable, List, Literal
 import inspect
 import shutil
-import re
 from collections import OrderedDict
 from contextlib import contextmanager
 import traceback
@@ -17,7 +16,7 @@ from pytorch_lightning.tuner.tuning import Tuner
 from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger  # noqa
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
-from entities import Run
+from c3lyr import Run, EntityFSIO
 from wrappers import TaskWrapperBase
 
 
@@ -308,35 +307,41 @@ class RootConfig:
 
     # ====================================== Methods for Setting up ======================================
     @staticmethod
-    def _setup_logger(logger_arg: str, run: Run):
+    def _setup_logger(logger_arg: Union[str, List[str]], run: Run):
         loggers, logger_instances = [], []
-        for logger_str in re.split(r"[\s,]+", logger_arg):
+        belonging_exp = run.belonging_exp
+        belonging_proj = belonging_exp.belonging_proj
+        if isinstance(logger_arg, str):
+            logger_arg = [logger_arg]
+        for logger_str in logger_arg:
             logger_name = logger_str.lower()
             loggers.append(logger_name)
+
+            # Logs are saved to `os.path.join(save_dir, name, version)`.
             if logger_name == "true":
-                return CSVLogger(save_dir=run.proj_dir, name=run.exp_name, version=run.name)
+                return CSVLogger(save_dir=belonging_proj.proj_dir, name=belonging_exp.dirname, version=run.name)
             elif logger_name == "false":
                 return False
             else:
                 if logger_name == "csv":
-                    logger_instances.append(CSVLogger(save_dir=run.proj_dir,
-                                                      name=run.exp_name,
-                                                      version=run.name))
+                    logger_instances.append(CSVLogger(save_dir=belonging_proj.proj_dir,
+                                                      name=belonging_exp.dirname,
+                                                      version=run.dirname))
                 elif logger_name == "tensorboard":
-                    logger_instances.append(TensorBoardLogger(save_dir=run.proj_dir,
-                                                              name=run.exp_name,
-                                                              version=run.name))
+                    logger_instances.append(TensorBoardLogger(save_dir=belonging_proj.proj_dir,
+                                                              name=belonging_exp.dirname,
+                                                              version=run.dirname))
                 elif logger_name == "wandb":
                     import wandb  # noqa
                     # Call `wandb.finish()` before instantiating `WandbLogger` to avoid reusing the wandb run if there
                     # has been already created wandb run in progress, as indicated by wandb 's UserWarning.
                     wandb.finish()
                     get_wandb_logger = partial(WandbLogger,
-                                               save_dir=run.proj_dir,
-                                               name=run.name,  # display name for the run
+                                               save_dir=belonging_proj.proj_dir,
+                                               name=run.dirname,  # display name for the run
                                                # The name of the project to which this run will belong:
-                                               project=osp.split(run.proj_dir)[1],
-                                               group=run.exp_name,  # use exp_name to group runs
+                                               project=belonging_proj.dirname,
+                                               group=belonging_exp.dirname,  # use exp_name to group runs
                                                job_type=run.job_type,
                                                id=run.global_id)
                     wandb_logger = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
@@ -352,7 +357,7 @@ class RootConfig:
         with self._collect_frame_locals("data_wrapper"):
             self.data_wrapper = self.data_wrapper_getter()
 
-    def setup_trainer(self, logger_arg: str, run: Run):
+    def setup_trainer(self, logger_arg: Union[str, List[str]], run: Run):
         """
         Instantiate the trainer(s) using the getters.
         :param logger_arg:
@@ -381,7 +386,7 @@ class RootConfig:
                 self.predict_trainer = self.predict_trainer_getter(logger_instances)
 
         RootConfig._add_hparams_to_logger(loggers, self._hparams)
-        Run.save_hparams(run.run_dir, self._hparams)
+        EntityFSIO.save_hparams(run.run_dir, self._hparams)
         self._hparams.clear()  # clear self._hparams after saved
     # =====================================================================================================
 
