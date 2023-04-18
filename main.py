@@ -211,7 +211,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
 
     elif job_type == "validate":
         __check_trainer(root_config_instance.validate_trainer, job_type)
-        if args.loaded_ckpt != "none":
+        if args.loaded_ckpt is not None:
             # Load the specified checkpoint
             loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
                 args.loaded_ckpt,
@@ -228,7 +228,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
     elif job_type == "test":
         __check_trainer(root_config_instance.test_trainer, job_type)
         # Same as "validate"
-        if args.loaded_ckpt != "none":
+        if args.loaded_ckpt is not None:
             loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
                 args.loaded_ckpt,
                 **root_config_instance.task_wrapper.get_init_args()
@@ -244,7 +244,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
     elif job_type == "predict":
         __check_trainer(root_config_instance.predict_trainer, job_type)
         # Same as "validate"
-        if args.loaded_ckpt != "none":
+        if args.loaded_ckpt is not None:
             loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
                 args.loaded_ckpt,
                 **root_config_instance.task_wrapper.get_init_args()
@@ -290,15 +290,16 @@ def main():
     subparsers = parser.add_subparsers()
 
     # >>>>>>>>>>>>>>>>>>>>>>> Subcommand 1: init >>>>>>>>>>>>>>>>>>>>>>>
-    parser_init = subparsers.add_parser("init", help="")
+    parser_init = subparsers.add_parser("init",
+                                        help="Create a new proj and a new exp.")
     parser_init.add_argument("-pn", "--proj-name", "--proj_name", type=str, required=True,
-                             help="")
+                             help="Name of the new proj.")
     parser_init.add_argument("-pd", "--proj-desc", "--proj_desc", type=str, required=True,
-                             help="")
+                             help="Description of the new proj.")
     parser_init.add_argument("-en", "--exp-name", "--exp_name", type=str, required=True,
-                             help="")
+                             help="Name of the new exp.")
     parser_init.add_argument("-ed", "--exp-desc", "--exp_desc", type=str, required=True,
-                             help="")
+                             help="Description of the new exp.")
     parser_init.add_argument("-l", "--logger", type=str, default="CSV", nargs='*',
                              help=f"Choose from {RootConfig.LOGGERS} "
                                   f"and combine arbitrarily e.g. \"csv wandb\""
@@ -308,86 +309,87 @@ def main():
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>> Subcommand 2: add-exp >>>>>>>>>>>>>>>>>>>>>>>
-    parser_exp = subparsers.add_parser("add-exp", help="Create a new exp within specified proj.")
+    parser_exp = subparsers.add_parser("add-exp",
+                                       help="Create a new exp within specified proj.")
     parser_exp.add_argument("-p", "--proj-id", "--proj_id", type=str, required=True,
-                            help="")
+                            help="ID of the proj that the new exp belongs to.")
     parser_exp.add_argument("-en", "--exp-name", "--exp_name", type=str, required=True,
-                            help="The name of the experiment, it will be appended to the prefix: exp_{exp_id}.")
+                            help="Name of the new exp.")
     parser_exp.add_argument("-ed", "--exp-desc", "--exp_desc", type=str, required=True,
-                            help="A description about the created exp.")
+                            help="Description of the new exp.")
     parser_exp.set_defaults(func=_add_exp)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand 3: ls >>>>>>>>>>>>>>>>>>>>>>>>>>
-    parser_ls = subparsers.add_parser("ls", help="")
+    parser_ls = subparsers.add_parser("ls",
+                                      help="Display info about proj, exp and runs in tables.")
     # These params are exclusive to each other, and one of them is required.
     param_group_ls = parser_ls.add_mutually_exclusive_group(required=True)
     param_group_ls.add_argument("-pe", "--projs-exps", "--projs_exps", action="store_true",
-                                help="Display all projects and experiments.")
+                                help="Display all projs and exps.")
     param_group_ls.add_argument("-p", "--projs", action="store_true",
-                                help="Display all projects.")
+                                help="Display all projs.")
     param_group_ls.add_argument("-er", "--exps-runs-of", "--exps_runs_of", type=str,
-                                help="Display all experiments and runs of the project specified by ID.")
+                                help="Display all exps and runs of the proj specified by ID.")
     param_group_ls.add_argument("-e", "--exps-of", "--exps_of", type=str,
-                                help="Display all experiments of the project specified by ID.")
+                                help="Display all exps of the proj specified by ID.")
     param_group_ls.add_argument("-r", "--runs-of", "--runs_of", type=str, nargs=2,
-                                help="Display all runs of the experiment of the project specified by IDs.")
+                                help="Display all runs of the exp of the proj specified by IDs.")
     parser_ls.set_defaults(func=_ls)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Subcommands for exec >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>> Subcommands: fit, resume-fit, validate, test, predict >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Create a parent subparser containing common arguments.
     # Ref: https://stackoverflow.com/questions/7498595/python-argparse-add-argument-to-multiple-subparsers
     exec_parent_parser = argparse.ArgumentParser(add_help=False)
     exec_parent_parser.add_argument("-c", "--config-file", "--config_file", type=str, required=True,
                                     help="Path to the config file.")
     exec_parent_parser.add_argument("-p", "--proj-id", "--proj_id", type=str, required=True,
-                                    help="The project id of which the current run belongs to.")
+                                    help="ID of the proj ID that the new run belongs to.")
     exec_parent_parser.add_argument("-e", "--exp-id", "--exp_id", type=str, required=True,
-                                    help="The experiment id of which the current run belongs to.")
+                                    help="ID of the exp that the new run belongs to.")
     exec_parent_parser.add_argument("-n", "--name", type=str, required=True,
-                                    help="The name of the current run.")
+                                    help="Name of the new run.")
     exec_parent_parser.add_argument("-d", "--desc", type=str, required=True,
-                                    help="A description about the current run.")
+                                    help="Description of the new run.")
 
     # >>>>>>>>>>>>>> Subcommand 4: fit >>>>>>>>>>>>>>>
     parser_fit = subparsers.add_parser("fit", parents=[exec_parent_parser],
-                                       help="")
+                                       help="Execute a fit run on the dataset's fit split.")
     parser_fit.set_defaults(func=_fit)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>> Subcommand 5: resume-fit >>>>>>>>>>>
     parser_resume_fit = subparsers.add_parser("resume-fit",
-                                              help="")
+                                              help="Resume an interrupted fit run.")
     parser_resume_fit.add_argument("-c", "--config-file", "--config_file", type=str, required=True,
                                    help="Path to the config file.")
     parser_resume_fit.add_argument("-r", "--resume-from", "--resume_from", type=str, required=True,
-                                   help="")
+                                   help="File path to the checkpoint where resumes.")
     parser_resume_fit.set_defaults(func=_resume_fit)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>> Subcommands: validate, test and predict >>>>>>>>>>>>>>>>>>>>>>
     # Common parent parser.
     validate_test_predict_parent_parser = argparse.ArgumentParser(add_help=False)
-    validate_test_predict_parent_parser.add_argument("-lc", "--loaded-ckpt", "--loaded_ckpt", type=str, required=True,
-                                                     help="This must be explicitly provided It can be a file path, "
-                                                          "or \"none\" (this means you are going to conduct "
-                                                          "validate/test/predict using the initialized model "
-                                                          "without loading any weights).")
+    validate_test_predict_parent_parser.add_argument("-lc", "--loaded-ckpt", "--loaded_ckpt", type=str, default=None,
+                                                     help="File path to the loaded model checkpoint. Default is None, "
+                                                          "which means you are going to conduct validate/test/predict "
+                                                          "using the initialized model without loading any weights).")
     # >>>>>>>>>>> Subcommand 6: validate >>>>>>>>>>>
     parser_validate = subparsers.add_parser("validate", parents=[exec_parent_parser,
                                                                  validate_test_predict_parent_parser],
-                                            help="")
+                                            help="Execute a validate run on the dataset's validate split.")
     parser_validate.set_defaults(func=_validate)
 
     # >>>>>>>>>>> Subcommand 7: test >>>>>>>>>>>
     parser_test = subparsers.add_parser("test", parents=[exec_parent_parser, validate_test_predict_parent_parser],
-                                        help="")
+                                        help="Execute a test run on the dataset's test split.")
     parser_test.set_defaults(func=_test)
 
     # >>>>>>>>>>> Subcommand 8: predict >>>>>>>>>>>
     parser_predict = subparsers.add_parser("predict", parents=[exec_parent_parser, validate_test_predict_parent_parser],
-                                           help="")
+                                           help="Execute a predict run.")
     parser_predict.set_defaults(func=_predict)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
