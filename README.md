@@ -10,7 +10,7 @@
 
 **目录**：
 
-
+- [Cube-DL-Project-Template](#cube-dl-project-template)
 - [1. 简介](#1-简介)
   - [1.1 动机](#11-动机)
   - [1.2 主要特点](#12-主要特点)
@@ -38,16 +38,17 @@
     - [`test`](#test)
     - [`predict`](#predict)
     - [其他配置项](#其他配置项)
-- [3. 工作流示例](#3-工作流示例)
+- [3. 工作流](#3-工作流)
   - [3.1 准备模板](#31-准备模板)
-  - [3.2 准备依赖](#32-准备依赖)
-  - [3.3 进行扩展](#33-进行扩展)
+  - [3.2 同步模板的更新](#32-同步模板的更新)
+  - [3.3 准备依赖](#33-准备依赖)
+  - [3.4 进行扩展](#34-进行扩展)
     - [模型](#模型)
     - [数据集](#数据集)
     - [Task Wrapper](#task-wrapper)
     - [Data Wrapper](#data-wrapper)
     - [配置文件](#配置文件)
-  - [3.4 进行实验](#34-进行实验)
+  - [3.5 进行实验](#35-进行实验)
 - [附录](#附录)
   - [配置系统中的参数收集](#配置系统中的参数收集)
   - [c3lyr](#c3lyr)
@@ -60,7 +61,7 @@
 按需求阅读此文档：
 
 - 如果想先从了解本代码仓库的一些基本概念开始，推荐从头开始阅读；
-- 如果想立即动手用起来，可以直接跳转到 [工作流示例](#3-工作流示例) 一节即刻上手；
+- 如果想立即动手用起来，可以直接跳转到 [3. 工作流](#3-工作流) 一节即刻上手；
 - 如果想了解更多实现细节，请参阅 [附录](#附录)
 
 ## 1.1 动机
@@ -595,19 +596,58 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 
 
-# 3. 工作流示例
+# 3. 工作流
 
 ## 3.1 准备模板
 
 可以通过以下方式使用此项目模板：
 
 1. 直接将此模板克隆到本地：`git clone https://github.com/Alive1024/DL-Project-Template.git`；
-2. 此模板已经在 Github 上设置为了 "Template repository "，可以在仓库主页直接通过 "Use this template" 进行使用（本模板使用了[actions-template-sync](https://github.com/marketplace/actions/actions-template-sync) Github Action，当模板仓库发生更改时，使用此模板生成的仓库将会收到 PR）；
+2. 此模板已经在 Github 上设置为了 "Template repository "，可以在仓库主页直接通过 "Use this template" 进行使用；
 3. Fork 此模板仓库。
 
 
 
-## 3.2 准备依赖
+## 3.2 同步模板的更新
+
+此项目模板可能会发生后续更新。当使用上面所述的第 2 种方式时，可以通过 Github Actions 来实现自动更新 (目前 Github 官方并没有提供下游 Repos 与 Template Repo 同步的功能)。这里使用了 [actions-template-sync](https://github.com/marketplace/actions/actions-template-sync)，如果想及时接受更新，请按以下步骤操作：
+
+在整个项目根目录下新建 `.github/workflows` 目录，然后添加名为 `template-sync.yml` 的文件，写入以下内容：
+
+```yaml
+on:
+  # Enable cronjob trigger
+  schedule:
+  - cron:  "0 0 * * 1"
+
+  # Enable manual trigger
+  workflow_dispatch:
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      # To use this repository's private action, you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: actions-template-sync
+        uses: AndreasAugustin/actions-template-sync@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          source_repo_path: Alive1024/Cube-DL-Project-Template
+          upstream_branch: main
+          pr_labels: template-sync
+```
+
+以上 action 通过 [cron](https://en.wikipedia.org/wiki/Cron) 指定了每周一的 00:00 进行一次同步，如果此模板仓库发生了更改，那么您的仓库将收到一个 PR。如果想要自定义执行同步的频率，可以借助 [crontab guru](https://crontab.guru/) 工具快速生成 cron schedule expressions，然后修改上面的 `cron:` 的内容。此外，由于添加了 ` workflow_dispatch`，也可以在仓库的 "Github Actions" 选项卡中手动执行此 action。
+
+同时，可以为此 action 设置其他的参数，例如 PR 的标题、PR 的标签等，详见 [Configuration parameters](https://github.com/marketplace/actions/actions-template-sync#configuration-parameters)。
+
+
+
+## 3.3 准备依赖
 
 此模板的必要依赖项包括：
 
@@ -632,9 +672,7 @@ pip install -r requirements.txt
 
 
 
-
-
-## 3.3 进行扩展
+## 3.4 进行扩展
 
 正如前文的 [1.3 设计原则](#13-设计原则) 中的 “扩展而非修改” 原则，此模板提供了尽可能强的扩展能力。
 
@@ -679,7 +717,7 @@ pip install -r requirements.txt
 
 
 
-## 3.4 进行实验
+## 3.5 进行实验
 
 下面罗列了常规工作流中命令示例。
 
