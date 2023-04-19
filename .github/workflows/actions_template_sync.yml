@@ -11,11 +11,11 @@ jobs:
 
     steps:
      - name: Generate token to read from source repo # see: https://github.com/tibdex/github-app-token
-        id: generate_token
-        uses: tibdex/github-app-token@v1
-        with:
-          app_id: ${{ secrets.APP_ID }}
-          private_key: ${{ secrets.PRIVATE_KEY }}
+       id: generate_token
+       uses: tibdex/github-app-token@v1
+       with:
+        app_id: ${{ secrets.APP_ID }}
+        private_key: ${{ secrets.PRIVATE_KEY }}
 
       - name: actions-template-sync
         uses: AndreasAugustin/actions-template-sync@v0.8.0
