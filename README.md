@@ -1,56 +1,16 @@
 # Cube-DL-Project-Template
 
-**Make your Deep Learning life eaiser and happier.**
+**A lightweight, instant, out-of-the-box Deep Learning project template based on PyTorch and PyTorch-Lighnting.** 
 
-**Relive you from chaos.**
+***Make your Deep Learning life eaiser and happier.***
+
+***Relive you from chaos of tons of hyperparameters and experiments.***
 
 
-- [Cube-DL-Project-Template](#cube-dl-project-template)
-- [1. 简介](#1-简介)
-  - [1.1 动机](#11-动机)
-  - [1.2 主要特点](#12-主要特点)
-  - [1.3 设计原则](#13-设计原则)
-  - [1.4 前置知识](#14-前置知识)
-- [2. 项目说明](#2-项目说明)
-  - [2.1 关键概念](#21-关键概念)
-    - [2.1.1 代码结构的三个部分](#211-代码结构的三个部分)
-    - [2.1.2 组织实验的三层结构](#212-组织实验的三层结构)
-  - [2.2 配置系统](#22-配置系统)
-    - [2.2.1 配置文件](#221-配置文件)
-    - [2.2.2 配置参数的自动记录](#222-配置参数的自动记录)
-    - [2.2.3 配置文件的自动归档](#223-配置文件的自动归档)
-    - [2.2.4 与其他配置方式的比较](#224-与其他配置方式的比较)
-  - [2.3 目录结构](#23-目录结构)
-  - [2.4 main.py 的命令与参数](#24-mainpy-的命令与参数)
-    - [`init`](#init)
-    - [`add-exp`](#add-exp)
-    - [`ls`](#ls)
-    - [`fit`, `validate`, `test`, `predict` 共有的参数](#fit-validate-test-predict-共有的参数)
-    - [`validate`, `test`, `predict` 共有的参数](#validate-test-predict-共有的参数)
-    - [`fit`](#fit)
-    - [`resume-fit`](#resume-fit)
-    - [`validate`](#validate)
-    - [`test`](#test)
-    - [`predict`](#predict)
-    - [其他配置项](#其他配置项)
-- [3. 工作流示例](#3-工作流示例)
-  - [3.1 准备模板](#31-准备模板)
-  - [3.2 准备依赖](#32-准备依赖)
-  - [3.3 进行扩展](#33-进行扩展)
-    - [模型](#模型)
-    - [数据集](#数据集)
-    - [Task Wrapper](#task-wrapper)
-    - [Data Wrapper](#data-wrapper)
-    - [配置文件](#配置文件)
-  - [3.4 进行实验](#34-进行实验)
-- [附录](#附录)
-  - [配置系统中的参数收集](#配置系统中的参数收集)
-  - [c3lyr](#c3lyr)
 
 **目录**：
 
 
-- [Cube-DL-Project-Template](#cube-dl-project-template)
 - [1. 简介](#1-简介)
   - [1.1 动机](#11-动机)
   - [1.2 主要特点](#12-主要特点)
