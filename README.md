@@ -615,6 +615,8 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 在整个项目根目录下新建 `.github/workflows` 目录，然后添加名为 `template-sync.yml` 的文件，写入以下内容：
 
 ```yaml
+name: actions-template-sync
+
 on:
   # Enable cronjob trigger
   schedule:
@@ -652,7 +654,7 @@ jobs:
 此模板的必要依赖项包括：
 
 ```text
-numpy==1.24.1
+numpy>=1.24.1
 opencv_python_headless>=4.6.0.66
 torch>=1.13.1
 torchvision>=0.14.1
