@@ -20,10 +20,10 @@ from c3lyr import EntityFactory, DAOFactory, EntityFSIO
 OUTPUT_DIR = osp.join(osp.dirname(osp.splitext(__file__)[0]), "outputs")
 
 # The format of archived configs,
-#   - "SINGLE_PY":
-#   - "ZIP":
-#   - "DIR":
-# The default is "SINGLE_PY"
+#   - "SINGLE_PY": merged single .py file
+#   - "ZIP": reserving original directory structure, and archive them into a .zip file
+#   - "DIR": reserving original directory structure, copy them into the destination directory directly
+# The default is "SINGLE_PY".
 ARCHIVED_CONFIGS_FORMAT: Literal["SINGLE_PY", "ZIP", "DIR"] = "SINGLE_PY"
 # =======================================================================
 

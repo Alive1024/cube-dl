@@ -1,10 +1,15 @@
-**目录**：
+# Cube-DL-Project-Template
+
+**Make your Deep Learning life eaiser and happier.**
+
+**Relive you from chaos.**
 
 
+- [Cube-DL-Project-Template](#cube-dl-project-template)
 - [1. 简介](#1-简介)
   - [1.1 动机](#11-动机)
   - [1.2 主要特点](#12-主要特点)
-  - [1.3 设计理念](#13-设计理念)
+  - [1.3 设计原则](#13-设计原则)
   - [1.4 前置知识](#14-前置知识)
 - [2. 项目说明](#2-项目说明)
   - [2.1 关键概念](#21-关键概念)
@@ -20,6 +25,8 @@
     - [`init`](#init)
     - [`add-exp`](#add-exp)
     - [`ls`](#ls)
+    - [`fit`, `validate`, `test`, `predict` 共有的参数](#fit-validate-test-predict-共有的参数)
+    - [`validate`, `test`, `predict` 共有的参数](#validate-test-predict-共有的参数)
     - [`fit`](#fit)
     - [`resume-fit`](#resume-fit)
     - [`validate`](#validate)
@@ -27,14 +34,60 @@
     - [`predict`](#predict)
     - [其他配置项](#其他配置项)
 - [3. 工作流示例](#3-工作流示例)
-  - [3.1 准备模板及其依赖](#31-准备模板及其依赖)
-  - [3.2 进行扩展](#32-进行扩展)
-    - [Task Wrapper](#task-wrapper)
-    - [Data Wrapper](#data-wrapper)
+  - [3.1 准备模板](#31-准备模板)
+  - [3.2 准备依赖](#32-准备依赖)
+  - [3.3 进行扩展](#33-进行扩展)
     - [模型](#模型)
     - [数据集](#数据集)
+    - [Task Wrapper](#task-wrapper)
+    - [Data Wrapper](#data-wrapper)
     - [配置文件](#配置文件)
-  - [3.3 进行实验](#33-进行实验)
+  - [3.4 进行实验](#34-进行实验)
+- [附录](#附录)
+  - [配置系统中的参数收集](#配置系统中的参数收集)
+  - [c3lyr](#c3lyr)
+
+**目录**：
+
+
+- [Cube-DL-Project-Template](#cube-dl-project-template)
+- [1. 简介](#1-简介)
+  - [1.1 动机](#11-动机)
+  - [1.2 主要特点](#12-主要特点)
+  - [1.3 设计原则](#13-设计原则)
+  - [1.4 前置知识](#14-前置知识)
+- [2. 项目说明](#2-项目说明)
+  - [2.1 关键概念](#21-关键概念)
+    - [2.1.1 代码结构的三个部分](#211-代码结构的三个部分)
+    - [2.1.2 组织实验的三层结构](#212-组织实验的三层结构)
+  - [2.2 配置系统](#22-配置系统)
+    - [2.2.1 配置文件](#221-配置文件)
+    - [2.2.2 配置参数的自动记录](#222-配置参数的自动记录)
+    - [2.2.3 配置文件的自动归档](#223-配置文件的自动归档)
+    - [2.2.4 与其他配置方式的比较](#224-与其他配置方式的比较)
+  - [2.3 目录结构](#23-目录结构)
+  - [2.4 main.py 的命令与参数](#24-mainpy-的命令与参数)
+    - [`init`](#init)
+    - [`add-exp`](#add-exp)
+    - [`ls`](#ls)
+    - [`fit`, `validate`, `test`, `predict` 共有的参数](#fit-validate-test-predict-共有的参数)
+    - [`validate`, `test`, `predict` 共有的参数](#validate-test-predict-共有的参数)
+    - [`fit`](#fit)
+    - [`resume-fit`](#resume-fit)
+    - [`validate`](#validate)
+    - [`test`](#test)
+    - [`predict`](#predict)
+    - [其他配置项](#其他配置项)
+- [3. 工作流示例](#3-工作流示例)
+  - [3.1 准备模板](#31-准备模板)
+  - [3.2 准备依赖](#32-准备依赖)
+  - [3.3 进行扩展](#33-进行扩展)
+    - [模型](#模型)
+    - [数据集](#数据集)
+    - [Task Wrapper](#task-wrapper)
+    - [Data Wrapper](#data-wrapper)
+    - [配置文件](#配置文件)
+  - [3.4 进行实验](#34-进行实验)
 - [附录](#附录)
   - [配置系统中的参数收集](#配置系统中的参数收集)
   - [c3lyr](#c3lyr)
@@ -67,7 +120,7 @@
 - **整洁的目录结构**：所有的输出产物将会有条理地放置到合适的位置。
 
 
-## 1.3 设计理念
+## 1.3 设计原则
 本项目模板在开发过程中尽可能地遵循了以下原则：
 
 - **通用性**：与具体的研究领域无关，在不同领域之间切换时无需从头开始；
@@ -571,9 +624,9 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 ### 其他配置项
 
-在 `main.py` 的开头，有一些通常不需要修改的配置项，因此并没有在子命令的参数中：
+在 `main.py` 的开头，有一些通常不需要修改的配置项，因此并没有放在子命令的参数中：
 
-- `OUTPUT_DIR`：输出目录的路径，默认为项目根目录下的 `outputs`；
+- `OUTPUT_DIR`：输出目录的路径，默认为整个项目根目录下的 `outputs`；
 - `ARCHIVED_CONFIGS_FORMAT`：配置文件归档的格式，可选值为：
   - "SIMPLE_PY": 将所有配置文件合并为单个 .py 文件；
   - "ZIP": 保持配置文件原来的目录结构，然后将其打包为 .zip 文件；
@@ -584,35 +637,95 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 # 3. 工作流示例
 
-## 3.1 准备模板及其依赖
+## 3.1 准备模板
 
-1. 直接将此模板克隆到本地：`git clone https://github.com/Alive1024/DL-Project-Template.git`
+可以通过以下方式使用此项目模板：
 
-2. Github
+1. 直接将此模板克隆到本地：`git clone https://github.com/Alive1024/DL-Project-Template.git`；
+
+2. 此模板已经在 Github 上设置为了 "Template repository "，可以在仓库主页直接通过 "Use this template" 进行使用。
+
+   
+
+## 3.2 准备依赖
+
+此模板的必要依赖项包括：
+
+```text
+numpy==1.24.1
+opencv_python_headless>=4.6.0.66
+torch>=1.13.1
+torchvision>=0.14.1
+pytorch_lightning>=1.9.0
+rich>=13.3.1
+jsonpath_ng>=1.5.3
+torchmetrics>=0.11.1
+```
 
 
 
-## 3.2 进行扩展
+可以通过以下命令直接安装：
 
-### Task Wrapper
+```shell
+pip install -r requirements.txt
+```
 
-### Data Wrapper
+
+
+
+
+## 3.3 进行扩展
+
+正如前文的 [1.3 设计原则](#13-设计原则) 中的 “扩展而非修改” 原则，此模板提供了尽可能强的扩展能力。
+
+
 
 ### 模型
 
+可以直接将现有的基于 PyTorch 的模型代码移植到 `models` 中，但需要遵循 PyTorch-Lightning 描述的规则，例如模型代码中不应该包含与硬件相关的代码 (例如调用 `.cuda()`， `.to()` 等)，详见 [Hardware Agnostic Training (Preparation)](https://lightning.ai/docs/pytorch/stable/accelerators/accelerator_prepare.html?highlight=cuda)。
+
+
+
 ### 数据集
 
-推荐使用软链接 `ln -s <DatasetSrcDir> <data/Dataset>`将数据集
+对于数据，推荐使用软链接 `ln -s <DatasetSrcDir> <data/Dataset>` （这里的 "DatasetSrcDir" 需要是绝对路径）将数据集链接到 `data` 目录中。
+
+对于数据集类，可以直接将现有的数据集类的定义移植到 `datasets` 中。
+
+
+
+### Task Wrapper
+
+模板中提供的 `BasicTaskWrapper` 只是一个常规的 task wrapper 示例，当不能满足特殊需求时，需要自定义新的 task wrapper，步骤如下：
+
+1. 在 `wrappers` 中新建一个源代码文件  (建议命名为 `xxx_task_wrapper.py`)，在其中一个类 (建议命名为 `XXXTaskWrapper`)，使其继承 `TaskWrapperBase`，然后按照编写 PyTorch-Lightning 的 `LightningModule` 的规则按照实际需要编写代码，并实现父类 `BasicTaskWrapper` 的抽象方法；
+
+2. 在 `wrappers/__init__.py` 中 `import` 新建的 task wrapper （实际上不进行此步骤也是可以的，只是在配置文件中 `import` 时需要将路径写全，而无法直接 `from wrappers import XXX`）
+
+
+
+### Data Wrapper
+
+类似于  `BasicTaskWrapper`, `BasicDataWrapper` 也是一个常规的 data wrapper 示例，自定义新的 data wrapper 的步骤如下：
+
+1. 在 `wrappers` 中新建一个源代码文件  (建议命名为 `xxx_data_wrapper.py`)，在其中一个类 (建议命名为 `XXXDataWrapper`)，使其继承 `pytorch_lightning.LightningDataModule`，然后按照编写 PyTorch-Lightning 的 `LightningDataModule` 的规则按照实际需要编写代码；
+2. 在 `wrappers/__init__.py` 中 `import` 新建的 data wrapper （实际上不进行此步骤也是可以的，只是在配置文件中 `import` 时需要将路径写全，而无法直接 `from wrappers import XXX`）
 
 
 
 ### 配置文件
 
+按照 [2.2.1 配置文件](#221-配置文件) 所述编写配置文件。
 
 
-## 3.3 进行实验
 
-初始化：
+## 3.4 进行实验
+
+下面罗列了常规工作流中命令示例。
+
+
+
+**初始化**：
 
 ```shell
 python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Baseline" -ed "Baseline exps."
@@ -620,7 +733,7 @@ python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Ba
 
 
 
-（可选项）添加新的 exp:
+**（可选项）添加新的 exp**:
 
 ```shell
 python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
@@ -628,7 +741,7 @@ python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
 
 
 
-显示所有的 proj 和 exp：
+**显示所有的 proj 和 exp**：
 
 ```shell
 python main.py ls -pe
@@ -636,7 +749,7 @@ python main.py ls -pe
 
 
 
-进行训练 （proj ID 和 exp ID 可以直接从 `ls` 命令的输出结果复制）：
+**进行训练 （proj ID 和 exp ID 可以直接从 `ls` 命令的输出结果复制）**：
 
 ```shell
 python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "SimpleCNN" -d "Use a 3-layer simple CNN as baseline."
@@ -644,7 +757,7 @@ python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n 
 
 
 
-继续中断的训练：
+**继续中断的训练**：
 
 ```shell
 python main.py resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch\=3-step\=1532.ckpt"
@@ -652,7 +765,7 @@ python main.py resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp
 
 
 
-进行测试：
+**进行测试**：
 
 ```shell
 python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Test" -d "Test the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
@@ -660,7 +773,7 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 
 
-进行预测：
+**进行预测**：
 
 ```shell
 
@@ -668,7 +781,7 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 
 
-复现某次实验：
+**复现某次 run** (通过向子命令的 `-c` 参数传入一个 archived config 的路径)：
 
 ```shell
 python main.py fit -c "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/archived_config_run_rw4q66gx.py" -p 3xp4svcs -e voxc2xhj -n "ReproduceSimpleCNN" -d "Reproduce the 3-layer simple CNN baseline."
