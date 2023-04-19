@@ -17,10 +17,10 @@ jobs:
         app_id: ${{ secrets.APP_ID }}
         private_key: ${{ secrets.PRIVATE_KEY }}
 
-      - name: actions-template-sync
-        uses: AndreasAugustin/actions-template-sync@v0.8.0
-        with:
-          github_token: ${{ steps.generate_token.outputs.token }}
-          source_repo_path: Alive1024/Cube-DL-Project-Template
-          upstream_branch: main
-          pr_labels: template-sync
+     - name: actions-template-sync
+       uses: AndreasAugustin/actions-template-sync@v0.8.0
+       with:
+        github_token: ${{ steps.generate_token.outputs.token }}
+        source_repo_path: Alive1024/Cube-DL-Project-Template
+        upstream_branch: main
+        pr_labels: template-sync
