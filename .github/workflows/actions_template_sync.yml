@@ -8,6 +8,7 @@ on:
 jobs:
   repo-sync:
     runs-on: ubuntu-latest
+
     steps:
      - name: Generate token to read from source repo # see: https://github.com/tibdex/github-app-token
         id: generate_token
