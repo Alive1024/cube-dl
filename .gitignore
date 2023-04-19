@@ -9,6 +9,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Ignore files in "data" except .gitkeep
+data/*
+!data/.gitkeep
+
 # Projects' outputs
 outputs/proj_*
 
