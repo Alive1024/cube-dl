@@ -602,10 +602,10 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 可以通过以下方式使用此项目模板：
 
 1. 直接将此模板克隆到本地：`git clone https://github.com/Alive1024/DL-Project-Template.git`；
+2. 此模板已经在 Github 上设置为了 "Template repository "，可以在仓库主页直接通过 "Use this template" 进行使用（本模板使用了[actions-template-sync](https://github.com/marketplace/actions/actions-template-sync) Github Action，当模板仓库发生更改时，使用此模板生成的仓库将会收到 PR）；
+3. Fork 此模板仓库。
 
-2. 此模板已经在 Github 上设置为了 "Template repository "，可以在仓库主页直接通过 "Use this template" 进行使用。
 
-   
 
 ## 3.2 准备依赖
 
