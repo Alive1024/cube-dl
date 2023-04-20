@@ -1,6 +1,6 @@
 # Cube-DL-Project-Template
 
-**A lightweight, instant, out-of-the-box Deep Learning project template based on PyTorch and PyTorch-Lighnting.** 
+**A lightweight, instant, out-of-the-box Deep Learning project template based on PyTorch and PyTorch-Lightning.** 
 
 ***Make your Deep Learning life eaiser and happier.***
 
