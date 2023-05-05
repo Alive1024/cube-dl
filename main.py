@@ -12,7 +12,7 @@ from rich.columns import Columns
 from root_config import RootConfig
 from c3lyr import EntityFactory, DAOFactory, EntityFSIO
 
-# ========================== Unusual Options ==========================
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Unusual Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # These options are unusual, do not need to be modified in most cases.
 
 # The root directory of all output products,
@@ -25,15 +25,15 @@ OUTPUT_DIR = osp.join(osp.dirname(osp.splitext(__file__)[0]), "outputs")
 #   - "DIR": reserving original directory structure, copy them into the destination directory directly
 # The default is "SINGLE_PY".
 ARCHIVED_CONFIGS_FORMAT: Literal["SINGLE_PY", "ZIP", "DIR"] = "SINGLE_PY"
-# =======================================================================
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-def __check_trainer(trainer: pl.Trainer, job_type: RootConfig.JOB_TYPES_T):
+def _check_trainer(trainer: pl.Trainer, job_type: RootConfig.JOB_TYPES_T):
     if not trainer:
         raise ValueError(f"There is no trainer for {job_type}, please specify it in the Config instance.")
 
 
-def __get_root_config_instance(config_file_path, return_getter=False):
+def _get_root_config_instance(config_file_path, return_getter=False):
     # Remove the part of root directory in an absolute path.
     relative_file_path = config_file_path.replace(osp.split(__file__)[0], '')
     import_path = relative_file_path.replace('\\', '.').replace('/', '.')
@@ -53,7 +53,7 @@ def __get_root_config_instance(config_file_path, return_getter=False):
     return (config_instance, root_config_getter) if return_getter else config_instance
 
 
-def _init(args: argparse.Namespace):
+def init(args: argparse.Namespace):
     proj = EntityFactory.get_proj_instance(name=args.proj_name, desc=args.proj_desc,
                                            output_dir=OUTPUT_DIR, logger=args.logger)
     DAOFactory.get_proj_dao().insert_entry(proj)
@@ -62,13 +62,13 @@ def _init(args: argparse.Namespace):
     DAOFactory.get_exp_dao().insert_entry(exp)
 
 
-def _add_exp(args: argparse.Namespace):
+def add_exp(args: argparse.Namespace):
     exp = EntityFactory.get_exp_instance(name=args.exp_name, desc=args.exp_desc, output_dir=OUTPUT_DIR,
                                          proj_id=args.proj_id)
     DAOFactory.get_exp_dao().insert_entry(exp)
 
 
-def _ls(args: argparse.Namespace):
+def ls(args: argparse.Namespace):
     def _draw_table(rich_table, items, prompt_on_empty):
         if len(items) > 0:
             for column_name in items[0].keys():
@@ -144,8 +144,8 @@ def _ls(args: argparse.Namespace):
     console.print(table)
 
 
-def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
-    root_config_instance, root_config_getter = __get_root_config_instance(args.config_file, return_getter=True)
+def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
+    root_config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
 
     pl.seed_everything(root_config_instance.global_seed)
 
@@ -191,7 +191,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
     root_config_instance.setup_trainer(logger_arg=run.belonging_exp.belonging_proj.logger, run=run)
 
     if job_type == "fit":
-        __check_trainer(root_config_instance.fit_trainer, job_type)
+        _check_trainer(root_config_instance.fit_trainer, job_type)
         root_config_instance.fit_trainer.fit(
             model=root_config_instance.task_wrapper,
             datamodule=root_config_instance.data_wrapper,
@@ -201,7 +201,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         EntityFSIO.merge_metrics_csv(run.run_dir)
 
     elif job_type == "resume-fit":
-        __check_trainer(root_config_instance.fit_trainer, job_type)
+        _check_trainer(root_config_instance.fit_trainer, job_type)
         root_config_instance.fit_trainer.fit(
             model=root_config_instance.task_wrapper,
             datamodule=root_config_instance.data_wrapper,
@@ -210,7 +210,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         EntityFSIO.merge_metrics_csv(run.run_dir)
 
     elif job_type == "validate":
-        __check_trainer(root_config_instance.validate_trainer, job_type)
+        _check_trainer(root_config_instance.validate_trainer, job_type)
         if args.loaded_ckpt is not None:
             # Load the specified checkpoint
             loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
@@ -226,7 +226,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         )
 
     elif job_type == "test":
-        __check_trainer(root_config_instance.test_trainer, job_type)
+        _check_trainer(root_config_instance.test_trainer, job_type)
         # Same as "validate"
         if args.loaded_ckpt is not None:
             loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
@@ -242,7 +242,7 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         )
 
     elif job_type == "predict":
-        __check_trainer(root_config_instance.predict_trainer, job_type)
+        _check_trainer(root_config_instance.predict_trainer, job_type)
         # Same as "validate"
         if args.loaded_ckpt is not None:
             loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
@@ -265,26 +265,6 @@ def __exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
     EntityFSIO.remove_empty_hparams_yaml(run.run_dir)
 
 
-def _fit(args: argparse.Namespace):
-    __exec(args, "fit")
-
-
-def _resume_fit(args: argparse.Namespace):
-    __exec(args, "resume-fit")
-
-
-def _validate(args: argparse.Namespace):
-    __exec(args, "validate")
-
-
-def _test(args: argparse.Namespace):
-    __exec(args, "test")
-
-
-def _predict(args: argparse.Namespace):
-    __exec(args, "predict")
-
-
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
@@ -305,7 +285,7 @@ def main():
                                   f"and combine arbitrarily e.g. \"csv wandb\""
                                   f"Or it can be True/False, meaning using the default CSV and "
                                   f"disable logging respectively.")
-    parser_init.set_defaults(func=_init)
+    parser_init.set_defaults(func=init)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>> Subcommand 2: add-exp >>>>>>>>>>>>>>>>>>>>>>>
@@ -317,7 +297,7 @@ def main():
                             help="Name of the new exp.")
     parser_exp.add_argument("-ed", "--exp-desc", "--exp_desc", type=str, required=True,
                             help="Description of the new exp.")
-    parser_exp.set_defaults(func=_add_exp)
+    parser_exp.set_defaults(func=add_exp)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand 3: ls >>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -335,7 +315,7 @@ def main():
                                 help="Display all exps of the proj specified by ID.")
     param_group_ls.add_argument("-r", "--runs-of", "--runs_of", type=str, nargs=2,
                                 help="Display all runs of the exp of the proj specified by IDs.")
-    parser_ls.set_defaults(func=_ls)
+    parser_ls.set_defaults(func=ls)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>> Subcommands: fit, resume-fit, validate, test, predict >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -356,7 +336,7 @@ def main():
     # >>>>>>>>>>>>>> Subcommand 4: fit >>>>>>>>>>>>>>>
     parser_fit = subparsers.add_parser("fit", parents=[exec_parent_parser],
                                        help="Execute a fit run on the dataset's fit split.")
-    parser_fit.set_defaults(func=_fit)
+    parser_fit.set_defaults(func=partial(_exec, job_type="fit"))
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>> Subcommand 5: resume-fit >>>>>>>>>>>
@@ -366,7 +346,7 @@ def main():
                                    help="Path to the config file.")
     parser_resume_fit.add_argument("-r", "--resume-from", "--resume_from", type=str, required=True,
                                    help="File path to the checkpoint where resumes.")
-    parser_resume_fit.set_defaults(func=_resume_fit)
+    parser_resume_fit.set_defaults(func=partial(_exec, job_type="resume-fit"))
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>> Subcommands: validate, test and predict >>>>>>>>>>>>>>>>>>>>>>
@@ -380,17 +360,17 @@ def main():
     parser_validate = subparsers.add_parser("validate", parents=[exec_parent_parser,
                                                                  validate_test_predict_parent_parser],
                                             help="Execute a validate run on the dataset's validate split.")
-    parser_validate.set_defaults(func=_validate)
+    parser_validate.set_defaults(func=partial(_exec, job_type="validate"))
 
     # >>>>>>>>>>> Subcommand 7: test >>>>>>>>>>>
     parser_test = subparsers.add_parser("test", parents=[exec_parent_parser, validate_test_predict_parent_parser],
                                         help="Execute a test run on the dataset's test split.")
-    parser_test.set_defaults(func=_test)
+    parser_test.set_defaults(func=partial(_exec, job_type="test"))
 
     # >>>>>>>>>>> Subcommand 8: predict >>>>>>>>>>>
     parser_predict = subparsers.add_parser("predict", parents=[exec_parent_parser, validate_test_predict_parent_parser],
                                            help="Execute a predict run.")
-    parser_predict.set_defaults(func=_predict)
+    parser_predict.set_defaults(func=partial(_exec, job_type="predict"))
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # Parse args and invoke the corresponding function

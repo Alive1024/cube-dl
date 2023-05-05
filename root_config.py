@@ -19,9 +19,8 @@ from wrappers import TaskWrapperBase
 
 
 class RootConfig:
-    JOB_TYPES = ("fit", "validate", "test", "predict", "tune")
-    JOB_TYPES_T = Literal["fit", "validate", "test", "predict", "tune"]
-    TRAINER_TYPES_T = Literal["default", JOB_TYPES_T]
+    JOB_TYPES_T = Literal["fit", "resume-fit", "validate", "test", "predict", "tune"]
+    TRAINER_TYPES_T = Literal["default", "fit", "validate", "test", "predict", "tune"]
 
     # Directly supported loggers
     LOGGERS = ("CSV", "TensorBoard", "wandb")
