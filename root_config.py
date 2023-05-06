@@ -1,7 +1,7 @@
 import os
 import os.path as osp
 import sys
-from typing import Optional, Callable, Union, Iterable, List, Literal
+from typing import Optional, Callable, Union, Iterable, List, Literal, Tuple
 import inspect
 import shutil
 from collections import OrderedDict
@@ -43,7 +43,7 @@ class RootConfig:
                 and (not test_trainer_getter) and (not predict_trainer_getter):
             raise ValueError("The trainer getters can't be all None.")
 
-        # ============= Attributes for capturing hparams =============
+        # >>>>>>>>>>>>> Attributes for capturing hparams >>>>>>>>>>>>>
         # A "flat" dict used to temporarily store the produced local variables during instantiating the task_wrapper,
         # data_wrapper and trainer. Its keys are the memory addresses of the objects, while its values are dicts
         # containing the corresponding local variables' names and values.
@@ -52,14 +52,14 @@ class RootConfig:
         # A "structured" (nested) dict containing the hparams needed to be logged.
         self._hparams = OrderedDict()
         self._cur_run_job_type = None
-        # ============================================================
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-        # ======================== Getters ========================
+        # >>>>>>>>>>>>>>>>>>>>>>>> Getters >>>>>>>>>>>>>>>>>>>>>>>>
         self.model_getter = getattr(task_wrapper_getter, "model_getter_func", None)
         if self.model_getter is None:
             raise ValueError("The model getter must be provided using the decorator `task_wrapper_getter` "
                              "when defined the task wrapper, e.g. "
-                             "`@task_wrapper_getter(model_getter_func=get_model_instance): ...`")
+                             "`@task_wrapper_getter(model_getter_func=get_model_instance)...`")
         self.task_wrapper_getter = task_wrapper_getter
         self.data_wrapper_getter = data_wrapper_getter
         self.default_trainer_getter = default_trainer_getter
@@ -67,9 +67,9 @@ class RootConfig:
         self.validate_trainer_getter = validate_trainer_getter
         self.test_trainer_getter = test_trainer_getter
         self.predict_trainer_getter = predict_trainer_getter
-        # ============================================================
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-        # ======================== Core Attributes  ========================
+        # >>>>>>>>>>>>>>>>>>>>>>>> Core Attributes >>>>>>>>>>>>>>>>>>>>>>>>
         self.task_wrapper: Optional[pl.LightningModule] = None
         self.data_wrapper: Optional[pl.LightningDataModule] = None
         self.fit_trainer: Optional[pl.Trainer] = None
@@ -99,11 +99,11 @@ class RootConfig:
                 "obj": self.predict_trainer
             }),
         })
-        # ===================================================================
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
         self.global_seed = global_seed
 
-    # =============================== Methods for Tracking Hyper Parameters ===============================
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Tracking Hyper Parameters >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @contextmanager
     def _collect_frame_locals(self, collect_type: Literal["task_wrapper", "data_wrapper", "trainer"]):
         """
@@ -306,9 +306,9 @@ class RootConfig:
             import wandb  # noqa
             wandb.config.update(hparams)
 
-    # ======================================================================================================
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    # ====================================== Methods for Setting up ======================================
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Setting up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @staticmethod
     def _setup_logger(logger_arg: Union[str, List[str]], run: Run):
         loggers, logger_instances = [], []
@@ -392,11 +392,13 @@ class RootConfig:
         EntityFSIO.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
         self._hparams.clear()  # clear self._hparams after saved
 
-    # =====================================================================================================
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    # ================================ Methods for Archiving Config Files ================================
-    # ========== Manner 1: Save all the config files into a directory (and compress it into a zip),
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Archiving Config Files >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Manner 1 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Save all the config files into a directory (and compress it into a zip),
     # keeping the directory structure.
+
     @staticmethod
     def _ensure_dir_exist(dir_path, as_python_package=True):
         if not osp.exists(dir_path):
@@ -451,18 +453,22 @@ class RootConfig:
                                 format="zip", root_dir=save_dir)
             shutil.rmtree(save_dir)
 
-    # ========== Manner 2: Merge the configs into single file.
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Manner 2 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    # Merge the configs into single file.
+
     @staticmethod
-    def _get_import_statements_from_getter(getter_func, excludes) -> List[str]:
+    def _get_import_stats_global_vars(getter_func, excludes) -> Tuple[List[str], List[str]]:
         """
-        Return the filtered import statements from getter's source code.
+        Return the filtered import statements (& global variables) from getter's source code.
         """
         if getter_func is None:
-            return []
+            return [], []
 
-        import_statements = []
+        import_stats, global_vars = [], []
         with open(inspect.getsourcefile(getter_func)) as f:
-            tree = ast.parse(f.read())
+            tree = ast.parse(f.read())  # get the abstract syntax tree of the source file
             f.seek(0)
             code_lines = f.readlines()
             # Insert a meaningless element at the index 0, because `ast.AST`'s `lineno` is 1-indexed.
@@ -471,7 +477,8 @@ class RootConfig:
 
         for node in tree.body:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
-                import_src = ''.join(code_lines[node.lineno:node.end_lineno + 1])
+                # Copy corresponding import lines(s) from source file
+                import_src = ''.join(code_lines[node.lineno: node.end_lineno + 1])
 
                 # If the current import statement contains any of the keywords indicated by `excludes`,
                 # it will be excluded.
@@ -481,9 +488,12 @@ class RootConfig:
                         excluded = True
                         break
                 if not excluded:
-                    import_statements.append(import_src)
+                    import_stats.append(import_src)
+            # Global variables
+            elif isinstance(node, ast.Assign):
+                global_vars.append(''.join(code_lines[node.lineno: node.end_lineno + 1]))
 
-        return import_statements
+        return import_stats, global_vars
 
     @staticmethod
     def _adapt_trainer_src(trainer_getter_func, root_config_src,
@@ -534,25 +544,48 @@ class RootConfig:
                 if trainer["getter"]:
                     excludes.append(trainer["getter"].__name__)
 
-            get_import_statements = partial(RootConfig._get_import_statements_from_getter,
-                                            excludes=excludes)
-            all_import_statements = []
+            get_import_stats_global_vars = partial(RootConfig._get_import_stats_global_vars,
+                                                   excludes=excludes)
+            all_import_stats, all_global_vars = [], []
             with open(osp.join(archived_configs_dir, archived_config_filename), 'w') as f:
-                # =========== Import Statements ===========
-                all_import_statements.extend(get_import_statements(self.model_getter))
+                # >>>>>>>>>>> Import Statements (& global variables) >>>>>>>>>>>
+                # 1. Model
+                import_stats, global_vars = get_import_stats_global_vars(self.model_getter)
+                all_import_stats.extend(import_stats)
+                all_global_vars.extend(global_vars)
 
-                all_import_statements.extend(get_import_statements(self.task_wrapper_getter))
-                all_import_statements.extend(get_import_statements(self.data_wrapper_getter))
+                # 2. Task wrapper
+                import_stats, global_vars = get_import_stats_global_vars(self.task_wrapper_getter)
+                all_import_stats.extend(import_stats)
+                all_global_vars.extend(global_vars)
 
+                # 3. Data wrapper
+                import_stats, global_vars = get_import_stats_global_vars(self.data_wrapper_getter)
+                all_import_stats.extend(import_stats)
+                all_global_vars.extend(global_vars)
+
+                # 4. Trainer(s)
                 for trainer in self._trainers.values():
-                    all_import_statements.extend(get_import_statements(trainer["getter"]))
+                    import_stats, global_vars = get_import_stats_global_vars(trainer["getter"])
+                    all_import_stats.extend(import_stats)
+                    all_global_vars.extend(global_vars)
 
-                all_import_statements.extend(get_import_statements(root_config_getter_func))
-                all_import_statements = set(all_import_statements)  # avoid duplicate imports
-                f.writelines(all_import_statements)
+                # 5. Root config
+                import_stats, global_vars = get_import_stats_global_vars(root_config_getter_func)
+                all_import_stats.extend(import_stats)
+                all_global_vars.extend(global_vars)
+
+                # Process & write
+                all_import_stats = set(all_import_stats)  # avoid duplicate imports
+                all_global_vars = set(all_global_vars)
+                f.writelines(all_import_stats)
                 f.writelines(['\n', '\n'])
+                if len(all_global_vars) != 0:
+                    f.writelines(all_global_vars)
+                    f.write('\n')
+                # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-                # =========== Source Code ===========
+                # >>>>>>>>>>>>>>>>>>>>>> Source Code >>>>>>>>>>>>>>>>>>>>>>
                 f.write(inspect.getsource(self.model_getter) + "\n\n")
                 f.write(inspect.getsource(self.task_wrapper_getter) + "\n\n")
                 f.write(inspect.getsource(self.data_wrapper_getter) + "\n\n")
@@ -567,4 +600,7 @@ class RootConfig:
                                                                                      kind)  # noqa
                         f.write(trainer_src + "\n\n")
                 f.write(root_config_src + '\n')
-    # ======================================================================================================
+                # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
