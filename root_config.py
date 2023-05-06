@@ -339,6 +339,7 @@ class RootConfig:
                     # Call `wandb.finish()` before instantiating `WandbLogger` to avoid reusing the wandb run if there
                     # has been already created wandb run in progress, as indicated by wandb 's UserWarning.
                     wandb.finish()
+                    wandb.init()
                     get_wandb_logger = partial(WandbLogger,
                                                save_dir=belonging_proj.proj_dir,
                                                name=run.dirname,  # display name for the run
