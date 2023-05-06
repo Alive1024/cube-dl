@@ -3,6 +3,7 @@ Decorators for Getters in Config Files.
 """
 
 from typing import Callable
+import inspect
 
 from root_config import RootConfig
 
@@ -39,7 +40,9 @@ def data_wrapper_getter(getter_func: Callable):
 
 
 def trainer_getter(getter_func: Callable):
-    """
-    This decorator does nothing at present, defined just for symmetry and future extension.
-    """
+    # Ensure the trainer getter has a parameter named "logger" to allow passing logger(s)
+    param_names = inspect.signature(getter_func).parameters.keys()
+    if (len(param_names) == 0) or ("logger" not in param_names):
+        raise RuntimeError("The trainer getter must have a parameter named `logger`, e.g. "
+                           "`@trainer_getter\ndef get_trainer_instance(logger):\n\t...`")
     return getter_func
