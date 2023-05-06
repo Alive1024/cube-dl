@@ -1,7 +1,7 @@
 import os
 import os.path as osp
 import sys
-from typing import Optional, Callable, Union, Iterable, List, Literal, Tuple
+from typing import Optional, Callable, Union, Iterable, List, Literal, Tuple, Dict
 import inspect
 import shutil
 from collections import OrderedDict
@@ -13,6 +13,7 @@ from functools import partial
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import Logger, CSVLogger, TensorBoardLogger, WandbLogger  # noqa
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
+from pytorch_lightning.loggers import Logger
 
 from c3lyr import Run, EntityFSIO
 from wrappers import TaskWrapperBase
@@ -21,6 +22,7 @@ from wrappers import TaskWrapperBase
 class RootConfig:
     JOB_TYPES_T = Literal["fit", "resume-fit", "validate", "test", "predict", "tune"]
     TRAINER_TYPES_T = Literal["default", "fit", "validate", "test", "predict", "tune"]
+    LOGGERS_T = Union[Logger, Iterable[Logger], bool]
 
     # Directly supported loggers
     LOGGERS = ("CSV", "TensorBoard", "wandb")
@@ -32,11 +34,11 @@ class RootConfig:
                  *,  # Compulsory keyword arguments, for better readability in config files.
                  task_wrapper_getter: Callable[[], TaskWrapperBase],
                  data_wrapper_getter: Callable[[], pl.LightningDataModule],
-                 default_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
-                 fit_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
-                 validate_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
-                 test_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
-                 predict_trainer_getter: Optional[Callable[[Logger], pl.Trainer]] = None,
+                 default_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
+                 fit_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
+                 validate_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
+                 test_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
+                 predict_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
                  global_seed: int = 42
                  ):
         if (not default_trainer_getter) and (not fit_trainer_getter) and (not validate_trainer_getter) \
@@ -298,48 +300,44 @@ class RootConfig:
         self._init_local_vars.clear()
 
     @staticmethod
-    def _add_hparams_to_logger(loggers: str, hparams: dict):
+    def _add_hparams_to_logger(loggers: dict, hparams: dict):
         """
-        Some loggers support for logging hyper-parameters, call their APIS here.
+        Some loggers support for logging hyper-parameters, call their APIs here.
         """
-        if "wandb" in loggers:
-            import wandb  # noqa
-            wandb.config.update(hparams)
+        # Executed only on rank 0, more details at: https://github.com/Lightning-AI/lightning/issues/13166
+        if "wandb" in loggers and rank_zero_only.rank == 0:
+            # Note: use directly wandb module here (i.e. `wandb.config.update(hparams)`)
+            # will trigger an error: "wandb.errors.Error: You must call wandb.init() before wandb.config.update"
+            loggers["wandb"].experiment.config.update(hparams)
 
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Setting up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @staticmethod
-    def _setup_logger(logger_arg: Union[str, List[str]], run: Run):
-        loggers, logger_instances = [], []
+    def _setup_logger(logger_arg: Union[str, List[str]], run: Run) -> Dict[str, LOGGERS_T]:
+        loggers = {}
         belonging_exp = run.belonging_exp
         belonging_proj = belonging_exp.belonging_proj
         if isinstance(logger_arg, str):
             logger_arg = [logger_arg]
         for logger_str in logger_arg:
             logger_name = logger_str.lower()
-            loggers.append(logger_name)
 
             # Logs are saved to `os.path.join(save_dir, name, version)`.
             if logger_name == "true":
-                return CSVLogger(save_dir=belonging_proj.proj_dir, name=belonging_exp.dirname, version=run.name)
+                logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir, name=belonging_exp.dirname, version=run.name)
             elif logger_name == "false":
-                return False
+                logger_instance = False
             else:
                 if logger_name == "csv":
-                    logger_instances.append(CSVLogger(save_dir=belonging_proj.proj_dir,
-                                                      name=belonging_exp.dirname,
-                                                      version=run.dirname))
+                    logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir,
+                                                name=belonging_exp.dirname,
+                                                version=run.dirname)
                 elif logger_name == "tensorboard":
-                    logger_instances.append(TensorBoardLogger(save_dir=belonging_proj.proj_dir,
-                                                              name=belonging_exp.dirname,
-                                                              version=run.dirname))
+                    logger_instance = TensorBoardLogger(save_dir=belonging_proj.proj_dir,
+                                                        name=belonging_exp.dirname,
+                                                        version=run.dirname)
                 elif logger_name == "wandb":
-                    import wandb  # noqa
-                    # Call `wandb.finish()` before instantiating `WandbLogger` to avoid reusing the wandb run if there
-                    # has been already created wandb run in progress, as indicated by wandb 's UserWarning.
-                    wandb.finish()
-                    wandb.init()
                     get_wandb_logger = partial(WandbLogger,
                                                save_dir=belonging_proj.proj_dir,
                                                name=run.dirname,  # display name for the run
@@ -348,10 +346,13 @@ class RootConfig:
                                                group=belonging_exp.dirname,  # use exp_name to group runs
                                                job_type=run.job_type,
                                                id=run.global_id)
-                    wandb_logger = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
-                    logger_instances.append(wandb_logger)
+                    logger_instance = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
+                else:
+                    raise ValueError("Unrecognized logger name: " + logger_str)
 
-        return loggers, logger_instances
+            loggers[logger_name] = logger_instance
+
+        return loggers
 
     def setup_wrappers(self):
         """ Instantiate the task/data wrapper and capture their `__init__`'s arguments. """
@@ -368,26 +369,26 @@ class RootConfig:
         :param run:
         :return:
         """
-        loggers, logger_instances = RootConfig._setup_logger(logger_arg=logger_arg, run=run)
+        loggers = RootConfig._setup_logger(logger_arg=logger_arg, run=run)
         self._cur_run_job_type = job_type = run.job_type
 
         with self._collect_frame_locals("trainer"):
             if job_type == "fit":
                 if self.fit_trainer_getter is None:
                     self.fit_trainer_getter = self.default_trainer_getter
-                self.fit_trainer = self.fit_trainer_getter(logger_instances)
+                self.fit_trainer = self.fit_trainer_getter(list(loggers.values()))
             elif job_type == "validate":
                 if self.validate_trainer_getter is None:
                     self.validate_trainer_getter = self.default_trainer_getter
-                self.validate_trainer = self.validate_trainer_getter(logger_instances)
+                self.validate_trainer = self.validate_trainer_getter(list(loggers.values()))
             elif job_type == "test":
                 if self.test_trainer_getter is None:
                     self.test_trainer_getter = self.default_trainer_getter
-                self.test_trainer = self.test_trainer_getter(logger_instances)
+                self.test_trainer = self.test_trainer_getter(list(loggers.values()))
             elif job_type == "predict":
                 if self.predict_trainer_getter is None:
                     self.predict_trainer_getter = self.default_trainer_getter
-                self.predict_trainer = self.predict_trainer_getter(logger_instances)
+                self.predict_trainer = self.predict_trainer_getter(list(loggers.values()))
 
         RootConfig._add_hparams_to_logger(loggers, self._hparams)
         EntityFSIO.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
