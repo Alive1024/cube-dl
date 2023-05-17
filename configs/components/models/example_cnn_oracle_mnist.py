@@ -1,4 +1,4 @@
-from config_decorators import model_getter
+from config_sys import model_getter
 from models.example_cnn import ExampleCNN
 
 

@@ -1,7 +1,7 @@
 from torchvision import transforms
 
 from wrappers import BasicDataWrapper
-from config_decorators import data_wrapper_getter
+from config_sys import data_wrapper_getter
 from datasets.oracle_mnist import OracleMNISTMemoryDataset
 
 

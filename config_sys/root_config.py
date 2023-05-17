@@ -241,11 +241,15 @@ class RootConfig:
                 # Some class (e.g. torchmetrics 's metric classes) may override the `__iter__` method
                 # (which means it is `Iterable`), but do not really implement it,
                 # only raise a `NotImplementedError` when trying to enumerate it.
+                # And some variables are "empty" that cannot also be iterated (e.g. 0-d tensor), `TypeError`
+                # will be raised in this case.
                 really_iterable = True
                 try:
                     for _ in value:
                         break
                 except NotImplementedError:
+                    really_iterable = False
+                except TypeError:
                     really_iterable = False
 
                 if really_iterable:

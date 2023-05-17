@@ -5,7 +5,7 @@ Decorators for Getters in Config Files.
 from typing import Callable
 import inspect
 
-from root_config import RootConfig
+from .root_config import RootConfig
 
 
 def root_config_getter(getter_func: Callable):

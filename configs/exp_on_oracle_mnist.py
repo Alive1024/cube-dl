@@ -1,5 +1,5 @@
-from root_config import RootConfig
-from config_decorators import root_config_getter
+from config_sys.root_config import RootConfig
+from config_sys import root_config_getter
 from .components.task_wrappers.basic_task_wrapper import get_task_wrapper_instance
 from .components.data_wrappers.oracle_mnist import get_data_wrapper_instance
 from .components.trainers.basic_trainer import get_trainer_instance

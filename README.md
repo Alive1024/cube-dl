@@ -2,9 +2,9 @@
 
 **A lightweight, instant, out-of-the-box Deep Learning project template based on PyTorch and PyTorch-Lightning.** 
 
-***Make your Deep Learning life eaiser and happier.***
+***Make your Deep Learning life easier and happier.***
 
-***Relive you from chaos of tons of hyperparameters and experiments.***
+***Relive you from chaos of tons of hyper-parameters and experiments.***
 
 
 
@@ -221,8 +221,7 @@
 在本模板中，配置文件实际上就是 `.py` 源代码文件，主要用于定义如何实例化相应的对象，编写配置文件即是一个选择(将需要使用的`import`进来)并定义如何实例化的过程。例如，下面是一个配置 root config 的代码片段：
 
 ```python
-from root_config import RootConfig
-from config_decorators import root_config_getter
+from config_sys import RootConfig, root_config_getter
 from .components.task_wrappers.basic_task_wrapper import get_task_wrapper_instance
 from .components.data_wrappers.oracle_mnist import get_data_wrapper_instance
 from .components.trainers.basic_trainer import get_trainer_instance
@@ -230,11 +229,11 @@ from .components.trainers.basic_trainer import get_trainer_instance
 
 @root_config_getter
 def get_root_config_instance():
-    return RootConfig(
-        task_wrapper_getter=get_task_wrapper_instance,
-        data_wrapper_getter=get_data_wrapper_instance,
-        default_trainer_getter=get_trainer_instance,
-    )
+  return RootConfig(
+    task_wrapper_getter=get_task_wrapper_instance,
+    data_wrapper_getter=get_data_wrapper_instance,
+    default_trainer_getter=get_trainer_instance,
+  )
 ```
 
 可以看到，在配置文件中，需要将实例化过程放入到一个 "getter" 函数中，最终将实例化的对象 `return`，之所以不是直接在配置文件中实例化某个对象，是为了能够控制实例化配置组件的时机。
@@ -249,22 +248,22 @@ from torch import nn
 from torchmetrics.classification import MulticlassAccuracy
 
 from wrappers import BasicTaskWrapper
-from config_decorators import task_wrapper_getter
+from config_sys import task_wrapper_getter
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
 @task_wrapper_getter(model_getter_func=get_model_instance)
 def get_task_wrapper_instance():
-    model = get_model_instance()
-    loss_func = nn.NLLLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-    return BasicTaskWrapper(
-        model=model,
-        loss_function=loss_func,
-        optimizer=optimizer,
-        validate_metrics=loss_func,
-        test_metrics=[loss_func, MulticlassAccuracy(num_classes=10)],
-    )
+  model = get_model_instance()
+  loss_func = nn.NLLLoss()
+  optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+  return BasicTaskWrapper(
+    model=model,
+    loss_function=loss_func,
+    optimizer=optimizer,
+    validate_metrics=loss_func,
+    test_metrics=[loss_func, MulticlassAccuracy(num_classes=10)],
+  )
 ```
 
 
@@ -391,7 +390,7 @@ def get_task_wrapper_instance():
 ```text
 DL-Project-Template	【项目根目录】
 ├── c3lyr 【"Core Triple Layers" 的简称，实现三层实体：proj, exp 和 run】
-├── config_decorators.py 【编写配置文件时要使用的装饰器】
+├── config_sys 【"Config System", 实现配置系统】
 ├── configs 【配置文件存放目录】
 │   ├── __init__.py
 │   ├── components 【四类配置组件】
@@ -420,7 +419,6 @@ DL-Project-Template	【项目根目录】
 │       │       └── metrics.csv
 │       └── proj_75kbcnng_cstu.json【此 proj 对应的记录文件】
 ├── requirements.txt
-├── root_config.py 【Root config 的定义】
 └── wrappers 【Task/data wrappers 的定义】
     ├── __init__.py
     ├── basic_data_wrapper.py 【常规的 task wrapper】
@@ -440,13 +438,13 @@ DL-Project-Template	【项目根目录】
 
 初始化一个新的 proj 和 exp。
 
-| 参数名                            |    类型     | 是否必需 | 含义                                                         |
-| --------------------------------- | :---------: | :------: | ------------------------------------------------------------ |
-| **-pn**, --proj-name, --proj_name |     str     |    ✔️     | 新建 proj 的名称                                             |
-| **-pd**, --proj-desc, --proj_desc |     str     |    ✔️     | 新建 proj 的描述                                             |
-| **-en**, --exp-name, --exp_name   |     str     |    ✔️     | 新建 exp 的名称                                              |
-| **-ed**, --exp-desc, --exp_desc   |     str     |    ✔️     | 新建 exp 的描述                                              |
-| **-l**, --logger                  | str，(多个) |    ❌     | 在此 proj 中使用的日志记录器。默认为 CSV，等同于传入 True，指定为 False 可以完全关闭。 |
+| 参数名                               |    类型    | 是否必需 | 含义                                                     |
+|-----------------------------------|:--------:|:----:|--------------------------------------------------------|
+| **-pn**, --proj-name, --proj_name |   str    |  ✔️  | 新建 proj 的名称                                            |
+| **-pd**, --proj-desc, --proj_desc |   str    |  ✔️  | 新建 proj 的描述                                            |
+| **-en**, --exp-name, --exp_name   |   str    |  ✔️  | 新建 exp 的名称                                             |
+| **-ed**, --exp-desc, --exp_desc   |   str    |  ✔️  | 新建 exp 的描述                                             |
+| **-l**, --logger                  | str，(多个) |  ❌   | 在此 proj 中使用的日志记录器。默认为 CSV，等同于传入 True，指定为 False 可以完全关闭。 |
 
 示例：
 
@@ -480,13 +478,13 @@ python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
 
 以下这些参数互斥，使用此子命令时必须指定其中一个。
 
-| 参数名                                  |     类型     |                             含义                             |
-| --------------------------------------- | :----------: | :----------------------------------------------------------: |
+| 参数名                                     |      类型      |                           含义                           |
+|-----------------------------------------|:------------:|:------------------------------------------------------:|
 | **-pe**, --projs-exps, --projs_exps     | "store_true" |                    显示所有的 proj 和 exp                    |
-| **-p**, --projs                         | "store_true" |                       显示所有的 proj                        |
-| **-er**, --exps-runs-of, --exps_runs_of |     str      |            显示指定的 proj ID 下的所有 exp 和 run            |
-| **-e**, --exps-of, --exps_of            |     str      |               显示指定的 proj ID 下所有的 exp                |
-| **-r**, --runs-of, --runs_of            |  str (2 个)  | 显示指定的 proj ID 和 exp ID 下所有的 run (proj ID 在前，exp ID 在后) |
+| **-p**, --projs                         | "store_true" |                       显示所有的 proj                       |
+| **-er**, --exps-runs-of, --exps_runs_of |     str      |              显示指定的 proj ID 下的所有 exp 和 run              |
+| **-e**, --exps-of, --exps_of            |     str      |                 显示指定的 proj ID 下所有的 exp                 |
+| **-r**, --runs-of, --runs_of            |  str (2 个)   | 显示指定的 proj ID 和 exp ID 下所有的 run (proj ID 在前，exp ID 在后) |
 
 示例：
 

@@ -3,7 +3,7 @@ from torch import nn
 from torchmetrics.classification import MulticlassAccuracy
 
 from wrappers import BasicTaskWrapper
-from config_decorators import task_wrapper_getter
+from config_sys import task_wrapper_getter
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
