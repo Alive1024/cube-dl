@@ -16,7 +16,6 @@ from pytorch_lightning.utilities.rank_zero import rank_zero_only
 from pytorch_lightning.loggers import Logger
 
 from c3lyr import Run, EntityFSIO
-from wrappers import TaskWrapperBase
 
 
 class RootConfig:
@@ -32,7 +31,9 @@ class RootConfig:
 
     def __init__(self,
                  *,  # Compulsory keyword arguments, for better readability in config files.
-                 task_wrapper_getter: Callable[[], TaskWrapperBase],
+                 # Cannot import and use `TaskWrapperBase` in type hints here because of circular import.
+                 # task_wrapper_getter: Callable[[], TaskWrapperBase],
+                 task_wrapper_getter,
                  data_wrapper_getter: Callable[[], pl.LightningDataModule],
                  default_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
                  fit_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
@@ -309,7 +310,7 @@ class RootConfig:
         Some loggers support for logging hyper-parameters, call their APIs here.
         """
         # Executed only on rank 0, more details at: https://github.com/Lightning-AI/lightning/issues/13166
-        if "wandb" in loggers and rank_zero_only.rank == 0:
+        if "wandb" in loggers and rank_zero_only.rank == 0:  # noqa
             # Note: use directly wandb module here (i.e. `wandb.config.update(hparams)`)
             # will trigger an error: "wandb.errors.Error: You must call wandb.init() before wandb.config.update"
             loggers["wandb"].experiment.config.update(hparams)
@@ -329,7 +330,9 @@ class RootConfig:
 
             # Logs are saved to `os.path.join(save_dir, name, version)`.
             if logger_name == "true":
-                logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir, name=belonging_exp.dirname, version=run.name)
+                logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir,
+                                            name=belonging_exp.dirname,
+                                            version=run.name)
             elif logger_name == "false":
                 logger_instance = False
             else:

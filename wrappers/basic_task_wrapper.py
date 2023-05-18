@@ -1,20 +1,24 @@
-from typing import Iterable, Optional, Callable, Union, Dict
-
 import torch
 from torch import nn
 
 from .wrapper_base import TaskWrapperBase
+
+try:
+    from torchmetrics.metric import Metric
+    TORCHMETRICS_INSTALLED = True
+except ModuleNotFoundError:
+    TORCHMETRICS_INSTALLED = False
 
 
 class BasicTaskWrapper(TaskWrapperBase):
     def __init__(self,
                  *,  # Compulsory keyword arguments, for better readability in config files.
                  model: nn.Module,
-                 loss_function: Union[nn.Module, Callable[[torch.Tensor, torch.Tensor], torch.Tensor]],
+                 loss_function: TaskWrapperBase.LOSS_FUNCTION_T,
                  optimizer: torch.optim.Optimizer,
                  lr_scheduler=None,
-                 validate_metrics: Optional[Union[Dict[str, Callable], Iterable[Callable], Callable]] = None,
-                 test_metrics: Optional[Union[Dict[str, Callable], Iterable[Callable], Callable]] = None
+                 validate_metrics: TaskWrapperBase.METRICS_T = None,
+                 test_metrics: TaskWrapperBase.METRICS_T = None
                  ):
         """
         Regular task wrapper with single optimizer (and optional single LR scheduler).
@@ -26,22 +30,28 @@ class BasicTaskWrapper(TaskWrapperBase):
         :param validate_metrics:
         :param test_metrics:
         """
-        super().__init__()
+        super().__init__(loss_function=loss_function, validate_metrics=validate_metrics, test_metrics=test_metrics)
         self.model = model
-        self.loss_function = loss_function
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
 
-        # Use the loss function as the default metrics if they are not provided
-        self.validate_metrics = validate_metrics if validate_metrics else [loss_function]
-        self.test_metrics = test_metrics if test_metrics else [loss_function]
+        # In order to use the metrics in "torchmetrics" library's, the following process is must.
+        if TORCHMETRICS_INSTALLED:
+            self._set_torchmetrics_attrs(self, self.validate_metrics)
+            self._set_torchmetrics_attrs(self, self.test_metrics)
 
-        # self.save_hyperparameters()   # Can't be directly used here, as the arguments
+        # `save_hyperparameters` can not be used here,
+        # as the arguments are not hyper-parameters but nn.Module/Callable.
+        # self.save_hyperparameters()
 
     def forward(self, x):
         return self.model(x)
 
     def configure_optimizers(self):
+        """
+        For details on configuring LR scheduler, refer to
+        https://lightning.ai/docs/pytorch/stable/common/lightning_module.html?highlight=lr_scheduler#configure-optimizers
+        """
         if self.lr_scheduler:
             return {"optimizer": self.optimizer,
                     "lr_scheduler": self.lr_scheduler}
@@ -55,34 +65,34 @@ class BasicTaskWrapper(TaskWrapperBase):
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
-    def _shared_eval_step(self, batch, batch_idx, metric_name_prefix: str, metrics):
+    def _shared_eval_step(self, batch, batch_idx, metrics: dict):
         input_data, target = batch
         predictions = self.model(input_data)
-        metric_values = {}
-        if isinstance(metrics, dict):
-            for name, metric in metrics.items():
-                # Append the prefix to the name
-                if not name.startswith(metric_name_prefix):
-                    name = f"{metric_name_prefix}_{name}"
-                metric_values[name] = metric(predictions, target)
-        # For Iterable without name(s)
-        else:
-            if not isinstance(metrics, Iterable):
-                metrics = [metrics]
-            for metric in metrics:
-                metric_values[f"{metric_name_prefix}_{metric._get_name()}"] = metric(predictions, target)
+        eval_results = {}
 
-        return metric_values
+        # After processed by superclass `TaskWrapperBase`, the passed metrics `self.validate_metrics` or
+        # `self.test_metrics` must be a dict.
+        for name, metric in metrics.items():
+            # If the metric is from "torchmetrics", log the metric object directly and
+            # let Lightning take care of when to reset the metric etc. See:
+            # https://torchmetrics.readthedocs.io/en/stable/pages/lightning.html#logging-torchmetrics
+            if TORCHMETRICS_INSTALLED and isinstance(metric, Metric):
+                metric(predictions, target)  # compute metric values
+                eval_results[name] = metric  # put the object into the dict, which can be logged
+
+            # Otherwise, log the result value.
+            else:
+                eval_results[name] = metric(predictions, target)
+
+        return eval_results
 
     def validation_step(self, batch, batch_idx):
-        metric_values = self._shared_eval_step(batch, batch_idx,
-                                               metric_name_prefix="val", metrics=self.validate_metrics)
-        self.log_dict(metric_values, prog_bar=True)
+        eval_results = self._shared_eval_step(batch, batch_idx, metrics=self.validate_metrics)
+        self.log_dict(eval_results, prog_bar=True)
 
     def test_step(self, batch, batch_idx):
-        metric_values = self._shared_eval_step(batch, batch_idx,
-                                               metric_name_prefix="test", metrics=self.test_metrics)
-        self.log_dict(metric_values)
+        eval_results = self._shared_eval_step(batch, batch_idx, metrics=self.test_metrics)
+        self.log_dict(eval_results)
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
         # Use data only if the batch consists of a pair of data and label
