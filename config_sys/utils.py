@@ -1,4 +1,4 @@
-from typing import Iterable, Generator
+from typing import Iterable, Generator, Type
 
 
 def iterable_to_generator(seq: Iterable) -> Generator:
@@ -20,3 +20,23 @@ def iterable_to_generator(seq: Iterable) -> Generator:
 
     for ele in seq:
         yield ele
+
+
+class LazyInstance:
+    """
+    Store a class and its initialization arguments temporarily, allowing the class
+    to be instantiated manually later.
+    """
+    def __init__(self, cls: Type, *args, **kwargs):
+        self.cls = cls
+        self.args = args
+        self.kwargs = kwargs
+
+    def get_cls(self):
+        return self.cls
+
+    def get_init_args(self):
+        return self.args, self.kwargs
+
+    def instantiate(self):
+        return self.cls(*self.args, **self.kwargs)

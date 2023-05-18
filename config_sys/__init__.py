@@ -14,4 +14,5 @@ __all__ = [
     "trainer_getter",
     "root_config_getter",
     "iterable_to_generator",
+    "LazyInstance"
 ]
