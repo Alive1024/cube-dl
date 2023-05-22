@@ -305,21 +305,22 @@ class RootConfig:
         self._init_local_vars.clear()
 
     @staticmethod
-    def _add_hparams_to_logger(loggers: dict, hparams: dict):
+    def _add_hparams_to_logger(loggers: Union[dict, bool], hparams: dict):
         """
         Some loggers support for logging hyper-parameters, call their APIs here.
         """
-        # Executed only on rank 0, more details at: https://github.com/Lightning-AI/lightning/issues/13166
-        if "wandb" in loggers and rank_zero_only.rank == 0:  # noqa
-            # Note: use directly wandb module here (i.e. `wandb.config.update(hparams)`)
-            # will trigger an error: "wandb.errors.Error: You must call wandb.init() before wandb.config.update"
-            loggers["wandb"].experiment.config.update(hparams)
+        if loggers:
+            # Executed only on rank 0, more details at: https://github.com/Lightning-AI/lightning/issues/13166
+            if "wandb" in loggers and rank_zero_only.rank == 0:  # noqa
+                # Note: use directly wandb module here (i.e. `wandb.config.update(hparams)`)
+                # will trigger an error: "wandb.errors.Error: You must call wandb.init() before wandb.config.update"
+                loggers["wandb"].experiment.config.update(hparams)
 
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Setting up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @staticmethod
-    def _setup_logger(logger_arg: Union[str, List[str]], run: Run) -> Dict[str, LOGGERS_T]:
+    def _setup_logger(logger_arg: Union[str, List[str]], run: Run) -> Union[Dict[str, LOGGERS_T], bool]:
         loggers = {}
         belonging_exp = run.belonging_exp
         belonging_proj = belonging_exp.belonging_proj
@@ -334,7 +335,7 @@ class RootConfig:
                                             name=belonging_exp.dirname,
                                             version=run.name)
             elif logger_name == "false":
-                logger_instance = False
+                return False
             else:
                 if logger_name == "csv":
                     logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir,
@@ -378,24 +379,25 @@ class RootConfig:
         """
         loggers = RootConfig._setup_logger(logger_arg=logger_arg, run=run)
         self._cur_run_job_type = job_type = run.job_type
+        logger_param = False if not loggers else list(loggers.values())
 
         with self._collect_frame_locals("trainer"):
             if job_type == "fit":
                 if self.fit_trainer_getter is None:
                     self.fit_trainer_getter = self.default_trainer_getter
-                self.fit_trainer = self.fit_trainer_getter(list(loggers.values()))
+                self.fit_trainer = self.fit_trainer_getter(logger_param)
             elif job_type == "validate":
                 if self.validate_trainer_getter is None:
                     self.validate_trainer_getter = self.default_trainer_getter
-                self.validate_trainer = self.validate_trainer_getter(list(loggers.values()))
+                self.validate_trainer = self.validate_trainer_getter(logger_param)
             elif job_type == "test":
                 if self.test_trainer_getter is None:
                     self.test_trainer_getter = self.default_trainer_getter
-                self.test_trainer = self.test_trainer_getter(list(loggers.values()))
+                self.test_trainer = self.test_trainer_getter(logger_param)
             elif job_type == "predict":
                 if self.predict_trainer_getter is None:
                     self.predict_trainer_getter = self.default_trainer_getter
-                self.predict_trainer = self.predict_trainer_getter(list(loggers.values()))
+                self.predict_trainer = self.predict_trainer_getter(logger_param)
 
         RootConfig._add_hparams_to_logger(loggers, self._hparams)
         EntityFSIO.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
