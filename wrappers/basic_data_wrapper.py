@@ -22,7 +22,8 @@ class BasicDataWrapper(LightningDataModule):
                  dataset_predict: Optional[Dataset] = None,
                  # Other arguments
                  dataloader_num_workers: int = os.cpu_count(),
-                 auto_split_train_val: Optional[Union[float, int]] = None
+                 auto_split_train_val: Optional[Union[float, int]] = None,
+                 dataloader_pin_memory: bool = False
                  ):
         """
         """
@@ -41,6 +42,7 @@ class BasicDataWrapper(LightningDataModule):
 
         self.dataloader_num_workers = dataloader_num_workers
         self.auto_split_train_val = auto_split_train_val
+        self.dataloader_pin_memory = dataloader_pin_memory
 
     def prepare_data(self):
         pass
@@ -74,23 +76,32 @@ class BasicDataWrapper(LightningDataModule):
     def train_dataloader(self):
         if self.dataset_fit is None:
             raise ValueError("The argument `dataset_fit` should be passed in to conduct fit.")
-        return DataLoader(self.dataset_fit, batch_size=self.fit_batch_size, shuffle=True,
-                          num_workers=self.dataloader_num_workers)
+        return DataLoader(self.dataset_fit,
+                          batch_size=self.fit_batch_size,
+                          shuffle=True,
+                          num_workers=self.dataloader_num_workers,
+                          pin_memory=self.dataloader_pin_memory)
 
     def val_dataloader(self):
         if self.dataset_val is None:
             raise ValueError("The argument `dataset_val` should be passed in to conduct validation.")
-        return DataLoader(self.dataset_val, batch_size=self.val_batch_size,
-                          num_workers=self.dataloader_num_workers)
+        return DataLoader(self.dataset_val,
+                          batch_size=self.val_batch_size,
+                          num_workers=self.dataloader_num_workers,
+                          pin_memory=self.dataloader_pin_memory)
 
     def test_dataloader(self):
         if self.dataset_test is None:
             raise ValueError("The argument `dataset_test` should be passed in to conduct test.")
-        return DataLoader(self.dataset_test, batch_size=self.test_batch_size,
-                          num_workers=self.dataloader_num_workers)
+        return DataLoader(self.dataset_test,
+                          batch_size=self.test_batch_size,
+                          num_workers=self.dataloader_num_workers,
+                          pin_memory=self.dataloader_pin_memory)
 
     def predict_dataloader(self):
         if self.dataset_predict is None:
             raise ValueError("The argument `dataset_predict` should be passed in to conduct prediction.")
-        return DataLoader(self.dataset_predict, batch_size=self.predict_batch_size,
-                          num_workers=self.dataloader_num_workers)
+        return DataLoader(self.dataset_predict,
+                          batch_size=self.predict_batch_size,
+                          num_workers=self.dataloader_num_workers,
+                          pin_memory=self.dataloader_pin_memory)
