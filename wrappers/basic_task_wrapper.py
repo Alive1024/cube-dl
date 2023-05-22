@@ -18,8 +18,8 @@ class BasicTaskWrapper(TaskWrapperBase):
                  optimizer: torch.optim.Optimizer,
                  lr_scheduler=None,
                  validate_metrics: TaskWrapperBase.METRICS_T = None,
-                 test_metrics: TaskWrapperBase.METRICS_T = None
-                 ):
+                 test_metrics: TaskWrapperBase.METRICS_T = None,
+                 compile_model: bool = False):
         """
         Regular task wrapper with single optimizer (and optional single LR scheduler).
 
@@ -30,8 +30,11 @@ class BasicTaskWrapper(TaskWrapperBase):
         :param validate_metrics:
         :param test_metrics:
         """
-        super().__init__(loss_function=loss_function, validate_metrics=validate_metrics, test_metrics=test_metrics)
-        self.model = model
+        super().__init__(model=model,
+                         loss_function=loss_function,
+                         validate_metrics=validate_metrics,
+                         test_metrics=test_metrics,
+                         compile_model=compile_model)
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
 

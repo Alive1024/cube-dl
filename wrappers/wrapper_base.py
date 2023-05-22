@@ -18,10 +18,20 @@ class TaskWrapperBase(LightningModule, metaclass=ABCMeta):
     METRICS_T = Optional[Union[Dict[str, Callable], Iterable[Callable], Callable]]
 
     def __init__(self,
+                 model: nn.Module,
                  loss_function: LOSS_FUNCTION_T,
                  validate_metrics: METRICS_T = None,
-                 test_metrics: METRICS_T = None):
+                 test_metrics: METRICS_T = None,
+                 compile_model: bool = False):
         super().__init__()
+
+        if compile_model:
+            assert int(torch.__version__.split('.')[0]) >= 2, \
+                "`torch.compile` is a feature of PyTorch 2.0, please upgrade your PyTorch version to 2.0+."
+            self.model = torch.compile(model)
+        else:
+            self.model = model
+
         self.loss_function = loss_function
         self.validate_metrics = self._process_metrics(validate_metrics, "val", loss_function)
         self.test_metrics = self._process_metrics(test_metrics, "test", loss_function)
