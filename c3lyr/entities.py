@@ -123,6 +123,7 @@ class Run(_EntityBase):
         self._run_dir = None
         self._job_type = None
         self._is_resuming = None
+        self._run_summary = "[To be edited]"
 
     @property
     def belonging_exp(self) -> Experiment:
@@ -155,6 +156,14 @@ class Run(_EntityBase):
     @is_resuming.setter
     def is_resuming(self, value):
         self._is_resuming = value
+
+    @property
+    def run_summary(self):
+        return self._run_summary
+
+    @run_summary.setter
+    def run_summary(self, value):
+        self._run_summary = value
 
 
 ENTITY_T = Union[Project, Experiment, Run]

@@ -195,7 +195,8 @@ class RunDAOJsonImpl(RunDAO):
             "Run Desc": run.desc,
             "Created Time": run.created_time,
             "Storage Path": run.run_dir,
-            "Job Type": run.job_type
+            "Job Type": run.job_type,
+            "Run Summary": run.run_summary
         })
         record_file_path = _get_record_file_path_from_proj(run.belonging_exp.belonging_proj)
         record = _json_read_from_path(record_file_path)
@@ -222,6 +223,7 @@ class RunDAOJsonImpl(RunDAO):
         run.created_time = record_run["Created Time"]
         run.run_dir = record_run["Storage Path"]
         run.job_type = record_run["Job Type"]
+        run.run_summary = record_run["Run Summary"]
         run.belonging_exp = ExperimentDAOJsonImpl.get_exp_from_id(output_dir, proj_id, exp_id)
         return run
 
