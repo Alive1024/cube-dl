@@ -1,6 +1,7 @@
 import inspect
 from typing import Iterable, Optional, Callable, Union, Dict
 from abc import ABCMeta, abstractmethod
+import time
 
 import torch
 from torch import nn
@@ -28,7 +29,10 @@ class TaskWrapperBase(LightningModule, metaclass=ABCMeta):
         if compile_model:
             assert int(torch.__version__.split('.')[0]) >= 2, \
                 "`torch.compile` is a feature of PyTorch 2.0, please upgrade your PyTorch version to 2.0+."
+            print("Start to compile the model.")
+            start_time = time.time()
             self.model = torch.compile(model)
+            print(f"Model compiling takes about {time.time() - start_time:.4f} seconds.")
         else:
             self.model = model
 
