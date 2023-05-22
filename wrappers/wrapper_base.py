@@ -35,6 +35,7 @@ class TaskWrapperBase(LightningModule, metaclass=ABCMeta):
         self.loss_function = loss_function
         self.validate_metrics = self._process_metrics(validate_metrics, "val", loss_function)
         self.test_metrics = self._process_metrics(test_metrics, "test", loss_function)
+        self.compile_model = compile_model
 
     @staticmethod
     def _get_name_of_anything(sth) -> str:
@@ -108,6 +109,8 @@ class TaskWrapperBase(LightningModule, metaclass=ABCMeta):
         for key in all_init_args.parameters.keys():
             if key == "self":
                 continue
+            if not hasattr(self, key):
+                raise RuntimeError("Any parameter of `__init__` must be set as attribute. ")
             filtered_init_args[key] = getattr(self, key)
         return filtered_init_args
 
