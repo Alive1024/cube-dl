@@ -188,7 +188,11 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # Set up the trainer(s) for the current run.
-    root_config_instance.setup_trainer(logger_arg=run.belonging_exp.belonging_proj.logger, run=run)
+    if args.off_log:
+        print("Logging has been off.")
+        root_config_instance.setup_trainer(logger_arg="false", run=run)
+    else:
+        root_config_instance.setup_trainer(logger_arg=run.belonging_exp.belonging_proj.logger, run=run)
 
     if job_type == "fit":
         _check_trainer(root_config_instance.fit_trainer, job_type)
@@ -332,6 +336,8 @@ def main():
                                     help="Name of the new run.")
     exec_parent_parser.add_argument("-d", "--desc", type=str, required=True,
                                     help="Description of the new run.")
+    exec_parent_parser.add_argument("-o", "--off-log", action="store_true",
+                                    help="Turn off all logging during the current execution.")
 
     # >>>>>>>>>>>>>> Subcommand 4: fit >>>>>>>>>>>>>>>
     parser_fit = subparsers.add_parser("fit", parents=[exec_parent_parser],

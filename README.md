@@ -498,13 +498,14 @@ python main.py ls -r p2em5umz 43vfatjk
 
 `fit`, `validate`, `test`, `predict` 四个子命令都具有下列参数：
 
-| 参数名                               | 类型 | 是否必需 | 含义                       |
-| ------------------------------------ | :--: | :------: | -------------------------- |
-| **-c**, --config-file, --config_file | str  |    ✔️     | 配置文件的路径             |
-| **-p**, --proj-id, --proj_id         | str  |    ✔️     | 新建 run 所属的 proj 的 ID |
-| **-e**, --exp-id, --exp_id           | str  |    ✔️     | 新建 run 所属的 exp 的 ID  |
-| **-n**, --name                       | str  |    ✔️     | 新建 run 的名称            |
-| **-d**, --desc                       | str  |    ✔️     | 新建 run 的描述            |
+| 参数名                                  |      类型      | 是否必需 | 含义                   |
+|--------------------------------------|:------------:|:----:|----------------------|
+| **-c**, --config-file, --config_file |     str      |  ✔️  | 配置文件的路径              |
+| **-p**, --proj-id, --proj_id         |     str      |  ✔️  | 新建 run 所属的 proj 的 ID |
+| **-e**, --exp-id, --exp_id           |     str      |  ✔️  | 新建 run 所属的 exp 的 ID  |
+| **-n**, --name                       |     str      |  ✔️  | 新建 run 的名称           |
+| **-d**, --desc                       |     str      |  ✔️  | 新建 run 的描述           |
+| **-o**, --off-log                    | "store_true" |  ❌   | 临时关闭所有 logging       |
 
 ### `validate`, `test`, `predict` 共有的参数
 
