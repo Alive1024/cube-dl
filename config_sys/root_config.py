@@ -133,13 +133,13 @@ class RootConfig:
         try:
             sys.setprofile(collect_fn)
             yield  # separate `__enter__` and `__exit__`
-        except BaseException:  # noqa
-            print(traceback.format_exc())
-            exit(1)
-        finally:
-            sys.setprofile(None)
             # Start parsing after collection completes
             self._parse_frame_locals_into_hparams(part_key)
+        except BaseException as e:  # noqa
+            print(traceback.format_exc())
+            raise e
+        finally:
+            sys.setprofile(None)
 
     def _collect_task_wrapper_frame_locals(self, frame, event, _):
         """
