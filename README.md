@@ -533,10 +533,11 @@ python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n 
 
 从某个中断的训练中恢复。
 
-| 参数名                               | 类型 | 是否必需 | 含义                                                         |
-| ------------------------------------ | :--: | :------: | ------------------------------------------------------------ |
-| **-c**, --config-file, --config_file | str  |    ✔️     | 配置文件的路径                                               |
-| **-r**, --resume-from, --resume_from | str  |    ✔️     | 要恢复的中断的 fit 的模型 checkpoint 的路径，路径中需要包含 proj、exp 和 run 所在的目录名 (推断 ID 需要这些信息) |
+| 参数名                               |     类型     | 是否必需 | 含义                                                         |
+| ------------------------------------ | :----------: | :------: | ------------------------------------------------------------ |
+| **-c**, --config-file, --config_file |     str      |    ✔️     | 配置文件的路径                                               |
+| **-r**, --resume-from, --resume_from |     str      |    ✔️     | 要恢复的中断的 fit 的模型 checkpoint 的路径，路径中需要包含 proj、exp 和 run 所在的目录名 (推断 ID 需要这些信息) |
+| **-o**, --off-log                    | "store_true" |    ❌     | 临时关闭所有 logging                                         |
 
 示例：
 

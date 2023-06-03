@@ -25,6 +25,8 @@ OUTPUT_DIR = osp.join(osp.dirname(osp.splitext(__file__)[0]), "outputs")
 #   - "DIR": reserving original directory structure, copy them into the destination directory directly
 # The default is "SINGLE_PY".
 ARCHIVED_CONFIGS_FORMAT: Literal["SINGLE_PY", "ZIP", "DIR"] = "SINGLE_PY"
+
+
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
@@ -336,7 +338,7 @@ def main():
                                     help="Name of the new run.")
     exec_parent_parser.add_argument("-d", "--desc", type=str, required=True,
                                     help="Description of the new run.")
-    exec_parent_parser.add_argument("-o", "--off-log", action="store_true",
+    exec_parent_parser.add_argument("-o", "--off-log", "-off_log", action="store_true",
                                     help="Turn off all logging during the current execution.")
 
     # >>>>>>>>>>>>>> Subcommand 4: fit >>>>>>>>>>>>>>>
@@ -353,6 +355,8 @@ def main():
     parser_resume_fit.add_argument("-r", "--resume-from", "--resume_from", type=str, required=True,
                                    help="File path to the checkpoint where resumes.")
     parser_resume_fit.set_defaults(func=partial(_exec, job_type="resume-fit"))
+    parser_resume_fit.add_argument("-o", "--off-log", "-off_log", action="store_true",
+                                   help="Turn off all logging during the current execution.")
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>> Subcommands: validate, test and predict >>>>>>>>>>>>>>>>>>>>>>
