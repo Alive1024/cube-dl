@@ -91,11 +91,11 @@ class BasicTaskWrapper(TaskWrapperBase):
 
     def validation_step(self, batch, batch_idx):
         eval_results = self._shared_eval_step(batch, batch_idx, metrics=self.validate_metrics)
-        self.log_dict(eval_results, prog_bar=True)
+        self.log_dict(eval_results, prog_bar=True, sync_dist=True)
 
     def test_step(self, batch, batch_idx):
         eval_results = self._shared_eval_step(batch, batch_idx, metrics=self.test_metrics)
-        self.log_dict(eval_results)
+        self.log_dict(eval_results, sync_dist=True)
 
     def predict_step(self, batch, batch_idx: int, dataloader_idx: int = 0):
         # Use data only if the batch consists of a pair of data and label
