@@ -292,7 +292,9 @@ class RootConfig:
             # Get the names of arguments of `__init__` through its signature
             init_args_names = inspect.signature(local_vars["self"].__class__.__init__).parameters.keys()
             for arg_name in init_args_names:
-                all_init_args[var_id][arg_name] = local_vars[arg_name]
+                # Ignore placeholder arguments "args" and "kwargs"
+                if arg_name not in ("args", "kwargs"):
+                    all_init_args[var_id][arg_name] = local_vars[arg_name]
 
         self._hparams[part_key] = OrderedDict({
             "type": str(target_obj_locals_dict["self"].__class__),

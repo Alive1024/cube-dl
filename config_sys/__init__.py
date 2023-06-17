@@ -4,6 +4,7 @@ This package implements the config system.
 from .root_config import *
 from .config_decorators import *
 from .utils import *
+from .shared_config import shared_config
 
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "trainer_getter",
     "root_config_getter",
     "iterable_to_generator",
-    "LazyInstance"
+    "LazyInstance",
+    "shared_config"
 ]
