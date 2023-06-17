@@ -56,8 +56,37 @@ def _get_root_config_instance(config_file_path, return_getter=False):
 
 
 def init(args: argparse.Namespace):
+    # >>>>>>>>>>>>>>>>>>> Preprocess `logger` argument >>>>>>>>>>>>>>>>>>>
+    if isinstance(args.logger, str):
+        logger = args.logger.lower()
+        if logger == "true":
+            logger = "csv"  # default to "csv" when given "true"
+        elif logger not in ("false", "csv"):
+            logger = ["csv", logger]  # add "csv" automatically
+        # For "false"/"csv", do nothing.
+
+    # A list
+    else:
+        # Deduplicate
+        logger = list(set([lg.lower() for lg in args.logger]))
+
+        # Ignore "false"/"true" when give multiple
+        if "false" in logger:
+            logger.remove("false")
+        if "true" in logger:
+            logger.remove("true")
+
+        # Make "csv" always be the first, as some callbacks (e.g. `ModelCheckpoint`) depends on
+        # the first logger's path setting.
+        if "csv" not in logger:
+            logger.insert(0, "csv")
+        else:
+            logger.remove("csv")
+            logger.insert(0, "csv")
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
     proj = EntityFactory.get_proj_instance(name=args.proj_name, desc=args.proj_desc,
-                                           output_dir=OUTPUT_DIR, logger=args.logger)
+                                           output_dir=OUTPUT_DIR, logger=logger)
     DAOFactory.get_proj_dao().insert_entry(proj)
     exp = EntityFactory.get_exp_instance(name=args.exp_name, desc=args.exp_desc, output_dir=OUTPUT_DIR,
                                          proj_id=proj.global_id)
@@ -287,10 +316,11 @@ def main():
     parser_init.add_argument("-ed", "--exp-desc", "--exp_desc", type=str, required=True,
                              help="Description of the new exp.")
     parser_init.add_argument("-l", "--logger", type=str, default="CSV", nargs='*',
-                             help=f"Choose from {RootConfig.LOGGERS} "
-                                  f"and combine arbitrarily e.g. \"csv wandb\""
+                             help=f"Choose one or multiple from {RootConfig.LOGGERS} "
+                                  f"and combine them arbitrarily e.g. \"tensorboard wandb\". "
                                   f"Or it can be True/False, meaning using the default CSV and "
-                                  f"disable logging respectively.")
+                                  f"disable logging respectively. Note that CSV will be always "
+                                  f"added automatically when it is not False.")
     parser_init.set_defaults(func=init)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

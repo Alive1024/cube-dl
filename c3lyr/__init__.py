@@ -5,7 +5,7 @@ This package implements the triple layer concepts: project, experiment and run.
 
 import os.path as osp
 from datetime import datetime
-from typing import List
+from typing import List, Union
 
 from .entities import Project, Experiment, Run, generate_id
 from .dao import ProjectDAO, ExperimentDAO, RunDAO
@@ -29,7 +29,7 @@ class EntityFactory:
         entity.created_time = datetime.now().strftime("%Y-%m-%d (%a) %H:%M:%S")
 
     @staticmethod
-    def get_proj_instance(name: str, desc: str, output_dir: str, logger: List[str]) -> Project:
+    def get_proj_instance(name: str, desc: str, output_dir: str, logger: Union[str, List[str]]) -> Project:
         proj = Project()
         EntityFactory._set_common(proj, name, desc)
         proj.proj_dir = osp.abspath(osp.join(output_dir, proj.dirname))

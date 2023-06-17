@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from typing import Literal, Union
+from typing import Literal, Union, List
 import secrets
 import string
 
@@ -85,7 +85,7 @@ class Project(_EntityBase):
         return self._logger
 
     @logger.setter
-    def logger(self, value):
+    def logger(self, value: Union[str, List[str]]):
         self._logger = value
 
 

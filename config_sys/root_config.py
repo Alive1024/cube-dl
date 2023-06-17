@@ -329,34 +329,29 @@ class RootConfig:
         for logger_str in logger_arg:
             logger_name = logger_str.lower()
 
-            # Logs are saved to `os.path.join(save_dir, name, version)`.
-            if logger_name == "true":
+            if logger_name == "false":
+                return False
+            elif logger_name == "csv":
+                # Logs are saved to `os.path.join(save_dir, name, version)`.
                 logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir,
                                             name=belonging_exp.dirname,
-                                            version=run.name)
-            elif logger_name == "false":
-                return False
+                                            version=run.dirname)
+            elif logger_name == "tensorboard":
+                logger_instance = TensorBoardLogger(save_dir=belonging_proj.proj_dir,
+                                                    name=belonging_exp.dirname,
+                                                    version=run.dirname)
+            elif logger_name == "wandb":
+                get_wandb_logger = partial(WandbLogger,
+                                           save_dir=belonging_proj.proj_dir,
+                                           name=run.dirname,  # display name for the run
+                                           # The name of the project to which this run will belong:
+                                           project=belonging_proj.dirname,
+                                           group=belonging_exp.dirname,  # use exp_name to group runs
+                                           job_type=run.job_type,
+                                           id=run.global_id)
+                logger_instance = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
             else:
-                if logger_name == "csv":
-                    logger_instance = CSVLogger(save_dir=belonging_proj.proj_dir,
-                                                name=belonging_exp.dirname,
-                                                version=run.dirname)
-                elif logger_name == "tensorboard":
-                    logger_instance = TensorBoardLogger(save_dir=belonging_proj.proj_dir,
-                                                        name=belonging_exp.dirname,
-                                                        version=run.dirname)
-                elif logger_name == "wandb":
-                    get_wandb_logger = partial(WandbLogger,
-                                               save_dir=belonging_proj.proj_dir,
-                                               name=run.dirname,  # display name for the run
-                                               # The name of the project to which this run will belong:
-                                               project=belonging_proj.dirname,
-                                               group=belonging_exp.dirname,  # use exp_name to group runs
-                                               job_type=run.job_type,
-                                               id=run.global_id)
-                    logger_instance = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
-                else:
-                    raise ValueError("Unrecognized logger name: " + logger_str)
+                raise ValueError("Unrecognized logger name: " + logger_str)
 
             loggers[logger_name] = logger_instance
 
