@@ -117,6 +117,8 @@ class RootConfig:
                 ),
             }
         )
+
+        self.loggers = None
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
         self.global_seed = global_seed
@@ -431,9 +433,9 @@ class RootConfig:
         :param run:
         :return:
         """
-        loggers = RootConfig._setup_logger(logger_arg=logger_arg, run=run)
+        self.loggers = RootConfig._setup_logger(logger_arg=logger_arg, run=run)
         self._cur_run_job_type = job_type = run.job_type
-        logger_param = False if not loggers else list(loggers.values())
+        logger_param = False if not self.loggers else list(self.loggers.values())
 
         with self._collect_frame_locals("trainer"):
             if job_type == "fit":
@@ -453,7 +455,7 @@ class RootConfig:
                     self.predict_trainer_getter = self.default_trainer_getter
                 self.predict_trainer = self.predict_trainer_getter(logger_param)
 
-        RootConfig._add_hparams_to_logger(loggers, self._hparams)
+        RootConfig._add_hparams_to_logger(self.loggers, self._hparams)
         EntityFSIO.save_hparams(
             run.run_dir, self._hparams, global_seed=self.global_seed
         )
