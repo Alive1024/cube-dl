@@ -13,6 +13,7 @@ class _SharedConfig:
     - In the config components' getters: import `shared_config` and use `shared_config.get(name)`
       to get the value.
     """
+
     _data = {}
 
     def set(self, name: str, value: Any):

@@ -1,4 +1,4 @@
-from typing import Iterable, Generator, Type
+from typing import Generator, Iterable, Type
 
 
 def iterable_to_generator(seq: Iterable) -> Generator:
@@ -27,6 +27,7 @@ class LazyInstance:
     Store a class and its initialization arguments temporarily, allowing the class
     to be instantiated manually later.
     """
+
     def __init__(self, cls: Type, *args, **kwargs):
         self.cls = cls
         self.args = args

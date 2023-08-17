@@ -1,11 +1,12 @@
 # Cube-DL-Project-Template
 
-**A lightweight, instant, out-of-the-box Deep Learning project template based on PyTorch and PyTorch-Lightning.** 
+**A lightweight, instant, out-of-the-box Deep Learning project template based on PyTorch and PyTorch-Lightning.**
 
 ***Make your Deep Learning life easier and happier.***
 
 ***Relive you from chaos of tons of hyper-parameters and experiments.***
 
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 
 **目录**：
@@ -139,10 +140,10 @@
                             └────────────────┘     ├────────────────┤
                                                    │     ......     │
                                                    └────────────────┘
-                                                                     
-                            ┌────────────────┐                       
-                            │    Trainer     │                       
-                            └────────────────┘                       
+
+                            ┌────────────────┐
+                            │    Trainer     │
+                            └────────────────┘
 ```
 
 
@@ -158,24 +159,24 @@
 在输出目录中，将会自动组织为类似下面这样的结构：
 
 ```text
-                         ┌───────────────────────┐                                     
-                       ┌▶│proj_75kbcnng_FirstProj│                                     
+                         ┌───────────────────────┐
+                       ┌▶│proj_75kbcnng_FirstProj│
                        │ └───────────────────────┘               ┌────────────────────┐
                        │             │                         ┌▶│ run_6lwbqdco_first │
                        │             │ ┌─────────────────────┐ │ ├────────────────────┤
                        │             ├▶│exp_7hrm9een_baseline│─┼▶│run_b3n1pjse_second │
                        │             │ └─────────────────────┘ │ ├───────┬────────────┘
-        ┌────────────┐ │             │                         └▶│  ...  │             
-        │   Output   │ │             │ ┌─────────────────────┐   └───────┘             
-        │ Directory  │─┤             ├▶│exp_3wpy1wa8_ablation│                         
-        └────────────┘ │             │ └─────────────────────┘                         
-                       │             │                                                 
-                       │             │ ┌───────┐                                       
-                       │             └▶│  ...  │                                       
-                       │               └───────┘                                       
-                       │ ┌───────┐                                                     
-                       └▶│  ...  │                                                     
-                         └───────┘      
+        ┌────────────┐ │             │                         └▶│  ...  │
+        │   Output   │ │             │ ┌─────────────────────┐   └───────┘
+        │ Directory  │─┤             ├▶│exp_3wpy1wa8_ablation│
+        └────────────┘ │             │ └─────────────────────┘
+                       │             │
+                       │             │ ┌───────┐
+                       │             └▶│  ...  │
+                       │               └───────┘
+                       │ ┌───────┐
+                       └▶│  ...  │
+                         └───────┘
 ```
 
 
@@ -221,7 +222,7 @@
 在本模板中，配置文件实际上就是 `.py` 源代码文件，主要用于定义如何实例化相应的对象，编写配置文件即是一个选择(将需要使用的`import`进来)并定义如何实例化的过程。例如，下面是一个配置 root config 的代码片段：
 
 ```python
-from config_sys import RootConfig, root_config_getter
+from cube.config_sys import RootConfig, root_config_getter
 from .components.task_wrappers.basic_task_wrapper import get_task_wrapper_instance
 from .components.data_wrappers.oracle_mnist import get_data_wrapper_instance
 from .components.trainers.basic_trainer import get_trainer_instance
@@ -248,7 +249,7 @@ from torch import nn
 from torchmetrics.classification import MulticlassAccuracy
 
 from wrappers import BasicTaskWrapper
-from config_sys import task_wrapper_getter
+from cube.config_sys import task_wrapper_getter
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
@@ -638,7 +639,7 @@ jobs:
         uses: AndreasAugustin/actions-template-sync@v0.8.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          source_repo_path: Alive1024/Cube-DL-Project-Template
+          source_repo_path: Alive1024/Cube
           upstream_branch: main
           pr_labels: template-sync
 ```

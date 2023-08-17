@@ -1,7 +1,7 @@
-from abc import ABCMeta
-from typing import Literal, Union, List
 import secrets
 import string
+from abc import ABCMeta
+from typing import List, Literal, Union
 
 
 def generate_id(length: int = 8) -> str:

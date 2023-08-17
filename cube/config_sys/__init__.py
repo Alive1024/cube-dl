@@ -1,11 +1,10 @@
 """
 This package implements the config system.
 """
-from .root_config import *
 from .config_decorators import *
-from .utils import *
+from .root_config import *
 from .shared_config import shared_config
-
+from .utils import *
 
 __all__ = [
     "RootConfig",
@@ -16,5 +15,5 @@ __all__ = [
     "root_config_getter",
     "iterable_to_generator",
     "LazyInstance",
-    "shared_config"
+    "shared_config",
 ]

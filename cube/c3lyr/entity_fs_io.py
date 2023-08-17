@@ -1,8 +1,8 @@
+import json
 import os
 import os.path as osp
 import re
 import shutil
-import json
 from collections import OrderedDict
 from datetime import datetime
 
@@ -13,13 +13,16 @@ class EntityFSIO:
     """
     A collection of functions for entities to interact with the file system.
     """
+
     @staticmethod
     @rank_zero_only
     def make_dir(target_dir, created_type: str, print_message=True):
         if not osp.exists(target_dir):
             os.mkdir(target_dir)
         if print_message:
-            print(f"{created_type}: \"{osp.split(target_dir)[1]}\" created, storage path: {target_dir}")
+            print(
+                f'{created_type}: "{osp.split(target_dir)[1]}" created, storage path: {target_dir}'
+            )
 
     # >>>>>>>>>>>>>> Dealing with pytorch_lightning.loggers.CSVLogger's metrics.csv >>>>>>>>>>>>>>
     @staticmethod
@@ -39,8 +42,7 @@ class EntityFSIO:
                 if match:
                     indices.append(int(match.group(1)))
             max_cnt = 1 if len(indices) == 0 else max(indices) + 1
-            shutil.move(metrics_csv_path,
-                        metrics_csv_path[:-4] + f"_{max_cnt}.csv")
+            shutil.move(metrics_csv_path, metrics_csv_path[:-4] + f"_{max_cnt}.csv")
 
     @staticmethod
     @rank_zero_only
@@ -49,19 +51,25 @@ class EntityFSIO:
         Merge multiple metrics_csv (if any) into "merged_metrics.csv".
         The correct order is "metrics_1.csv" -> "metrics_2.csv" -> ... -> "metrics.csv".
         """
-        metrics_csv_files = [filename for filename in os.listdir(run_dir)
-                             if filename.startswith("metrics_") and filename.endswith(".csv")]
-        metrics_csv_files.sort(key=lambda x: int(osp.splitext(x)[0].split('_')[1]))
+        metrics_csv_files = [
+            filename
+            for filename in os.listdir(run_dir)
+            if filename.startswith("metrics_") and filename.endswith(".csv")
+        ]
+        metrics_csv_files.sort(key=lambda x: int(osp.splitext(x)[0].split("_")[1]))
         # Append the latest one to the last.
         if osp.exists(osp.join(run_dir, "metrics.csv")):
             metrics_csv_files.append("metrics.csv")
         if len(metrics_csv_files) > 1:
-            with open(osp.join(run_dir, "merged_metrics.csv"), 'w') as merged_metrics_csv:
+            with open(
+                osp.join(run_dir, "merged_metrics.csv"), "w"
+            ) as merged_metrics_csv:
                 for csv_idx, csv_filename in enumerate(metrics_csv_files):
                     with open(osp.join(run_dir, csv_filename)) as metrics_csv:
                         if csv_idx != 0:
                             next(metrics_csv)  # skip the csv header to avoid repetition
                         merged_metrics_csv.write(metrics_csv.read())
+
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Saving Files. >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -80,10 +88,13 @@ class EntityFSIO:
                     indices.append(int(match.group(1)))
 
             max_cnt = 1 if len(indices) == 0 else max(indices) + 1
-            shutil.move(hparams_json_path, osp.splitext(hparams_json_path)[0] + f"_{max_cnt}.json")
+            shutil.move(
+                hparams_json_path,
+                osp.splitext(hparams_json_path)[0] + f"_{max_cnt}.json",
+            )
 
         hparams.update(kwargs)
-        with open(hparams_json_path, 'w', encoding="utf-8") as f:
+        with open(hparams_json_path, "w", encoding="utf-8") as f:
             json.dump(hparams, f, indent=2)
 
     @staticmethod
@@ -102,14 +113,18 @@ class EntityFSIO:
     @staticmethod
     @rank_zero_only
     def save_model_structure(run_dir, model):
-        with open(osp.join(run_dir, "model_structure.txt"), 'w') as f:
+        with open(osp.join(run_dir, "model_structure.txt"), "w") as f:
             f.write(repr(model))
 
     @staticmethod
     @rank_zero_only
     def mkdir_for_predictions(run_dir, prediction_dir_prefix="predictions") -> str:
-        prediction_dir = osp.join(run_dir, f"{prediction_dir_prefix}_"
-                                           f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}")
+        prediction_dir = osp.join(
+            run_dir,
+            f"{prediction_dir_prefix}_"
+            f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
+        )
         os.mkdir(prediction_dir)
         return prediction_dir
+
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

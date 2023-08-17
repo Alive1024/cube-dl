@@ -2,7 +2,6 @@ from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from typing import List
 
-
 from .entities import ENTITY_T, Project
 
 
@@ -15,6 +14,7 @@ class _EntityDAOBase(metaclass=ABCMeta):
     @abstractmethod
     def get_extra_data(self, entity: ENTITY_T, key: str):
         pass
+
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     @abstractmethod

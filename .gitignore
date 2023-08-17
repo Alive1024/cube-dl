@@ -5,16 +5,11 @@
 # MacOS-Specific
 .DS_Store
 
+dist/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Ignore files in "data" except .gitkeep
-data/*
-!data/.gitkeep
-
-# Projects' outputs
-outputs/proj_*
 
 temp.py

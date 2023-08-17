@@ -7,11 +7,10 @@ import os.path as osp
 from datetime import datetime
 from typing import List, Union
 
-from .entities import Project, Experiment, Run, generate_id
-from .dao import ProjectDAO, ExperimentDAO, RunDAO
-from .dao_json_impl import ProjectDAOJsonImpl, ExperimentDAOJsonImpl, RunDAOJsonImpl
+from .dao import ExperimentDAO, ProjectDAO, RunDAO
+from .dao_json_impl import ExperimentDAOJsonImpl, ProjectDAOJsonImpl, RunDAOJsonImpl
+from .entities import Experiment, Project, Run, generate_id
 from .entity_fs_io import EntityFSIO
-
 
 __all__ = ["Project", "Experiment", "Run", "EntityFactory", "DAOFactory", "EntityFSIO"]
 
@@ -29,7 +28,9 @@ class EntityFactory:
         entity.created_time = datetime.now().strftime("%Y-%m-%d (%a) %H:%M:%S")
 
     @staticmethod
-    def get_proj_instance(name: str, desc: str, output_dir: str, logger: Union[str, List[str]]) -> Project:
+    def get_proj_instance(
+        name: str, desc: str, output_dir: str, logger: Union[str, List[str]]
+    ) -> Project:
         proj = Project()
         EntityFactory._set_common(proj, name, desc)
         proj.proj_dir = osp.abspath(osp.join(output_dir, proj.dirname))
@@ -38,19 +39,27 @@ class EntityFactory:
         return proj
 
     @staticmethod
-    def get_exp_instance(name: str, desc: str, output_dir: str, proj_id: str) -> Experiment:
+    def get_exp_instance(
+        name: str, desc: str, output_dir: str, proj_id: str
+    ) -> Experiment:
         exp = Experiment()
         EntityFactory._set_common(exp, name, desc)
-        exp.belonging_proj = DAOFactory.get_proj_dao().get_proj_from_id(output_dir, proj_id)
+        exp.belonging_proj = DAOFactory.get_proj_dao().get_proj_from_id(
+            output_dir, proj_id
+        )
         exp.exp_dir = osp.abspath(osp.join(exp.belonging_proj.proj_dir, exp.dirname))
         EntityFSIO.make_dir(exp.exp_dir, exp.ENTITY_TYPE)
         return exp
 
     @staticmethod
-    def get_run_instance(name: str, desc: str, output_dir: str, proj_id: str, exp_id: str, job_type: str) -> Run:
+    def get_run_instance(
+        name: str, desc: str, output_dir: str, proj_id: str, exp_id: str, job_type: str
+    ) -> Run:
         run = Run()
         EntityFactory._set_common(run, name, desc)
-        run.belonging_exp = DAOFactory.get_exp_dao().get_exp_from_id(output_dir, proj_id, exp_id)
+        run.belonging_exp = DAOFactory.get_exp_dao().get_exp_from_id(
+            output_dir, proj_id, exp_id
+        )
         run.run_dir = osp.abspath(osp.join(run.belonging_exp.exp_dir, run.dirname))
         run.job_type = job_type
         EntityFSIO.make_dir(run.run_dir, run.ENTITY_TYPE)
