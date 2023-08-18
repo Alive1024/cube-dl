@@ -1,8 +1,7 @@
 numpy>=1.24.1
-opencv_python_headless>=4.6.0.66
-torch>=1.13.1
-torchvision>=0.14.1
-pytorch_lightning>=1.9.0
-rich>=13.3.1
+opencv_python>=4.8.0.76
+torch>=2.0.1
+torchvision>=0.15.2
+pytorch_lightning>=2.0.7
+rich>=13.5.2
 jsonpath_ng>=1.5.3
-torchmetrics>=0.11.1
