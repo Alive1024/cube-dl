@@ -1,0 +1,26 @@
+name: Packaging Wheel
+
+on:
+  push:
+    branches: ["main"]
+
+  workflow_dispatch:
+
+jobs:
+  Packaging Wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - uses: abatilo/actions-poetry@v2
+
+      - name: Poetry Build
+        run: poetry build
+
+      - uses: actions/upload-artifact@v3.1.1
+        with:
+          path: ./dist
