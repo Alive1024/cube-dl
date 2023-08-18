@@ -1,22 +1,28 @@
 import argparse
 import importlib
+import os
 import os.path as osp
+import sys
 from functools import partial
 from typing import Literal
 
 import pytorch_lightning as pl
-from c3lyr import DAOFactory, EntityFactory, EntityFSIO
-from config_sys import RootConfig
 from rich.columns import Columns
 from rich.console import Console
 from rich.table import Table
+
+from cube.c3lyr import DAOFactory, EntityFactory, EntityFSIO
+from cube.config_sys import RootConfig
+
+# Add current working directory to PYTHONPATH  # noqa
+sys.path.insert(0, os.getcwd())
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Unusual Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # These options are unusual, do not need to be modified in most cases.
 
 # The root directory of all output products,
-# the default is the "outputs" directory in the entire project root directory.
-OUTPUT_DIR = osp.join(osp.dirname(osp.splitext(__file__)[0]), "../outputs")
+# the default is the "outputs" directory in the current working directory.
+OUTPUT_DIR = osp.join(os.getcwd(), "outputs")
 
 # The format of archived configs,
 #   - "SINGLE_PY": merged single .py file
