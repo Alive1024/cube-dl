@@ -11,12 +11,8 @@ from functools import partial
 from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import (  # noqa
-    CSVLogger,
-    Logger,
-    TensorBoardLogger,
-    WandbLogger,
-)
+from pytorch_lightning.loggers import WandbLogger  # noqa
+from pytorch_lightning.loggers import CSVLogger, Logger, TensorBoardLogger
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 from cube.c3lyr import EntityFSIO, Run
