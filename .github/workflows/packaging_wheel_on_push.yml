@@ -3,6 +3,7 @@ name: Packaging Wheel
 on:
   push:
     branches: ["main"]
+    paths: ["!README.md"]
 
   workflow_dispatch:
 
