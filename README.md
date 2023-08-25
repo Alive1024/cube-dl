@@ -6,6 +6,7 @@
 
 ***Relive you from chaos of tons of hyper-parameters and experiments.***
 
+![wheels](https://github.com/Alive1024/Cube/actions/workflows/packaging_wheel_on_push.yml/badge.svg)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 
