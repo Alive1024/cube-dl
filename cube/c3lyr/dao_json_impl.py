@@ -299,8 +299,8 @@ class RunDAOJsonImpl(RunDAO):
                 OrderedDict(
                     {
                         "Run ID": run_id,
-                        "Exp Name": run["Run Name"],
-                        "Exp Desc": run["Run Desc"],
+                        "Run Name": run["Run Name"],
+                        "Run Desc": run["Run Desc"],
                         "Created Time": run["Created Time"],
                     }
                 )
