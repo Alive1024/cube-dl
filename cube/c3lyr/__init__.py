@@ -24,7 +24,7 @@ class EntityFactory:
         entity.global_id = global_id if global_id else generate_id()
         entity.name = name
         entity.desc = desc
-        entity.created_time = datetime.now().strftime("%Y-%m-%d (%a) %H:%M:%S")
+        entity.created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @staticmethod
     def get_proj_instance(name: str, desc: str, output_dir: str, logger: str | list[str]) -> Project:

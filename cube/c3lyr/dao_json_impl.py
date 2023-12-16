@@ -112,7 +112,7 @@ class ProjectDAOJsonImpl(ProjectDAO):
                         )
                     )
         # Sort the list according to the created time
-        projects.sort(key=lambda proj: datetime.strptime(proj["Created Time"], "%Y-%m-%d (%a) %H:%M:%S"))
+        projects.sort(key=lambda proj: datetime.strptime(proj["Created Time"], "%Y-%m-%d %H:%M:%S"))
         return projects
 
     @staticmethod
