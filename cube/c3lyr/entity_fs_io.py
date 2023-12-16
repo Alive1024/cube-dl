@@ -20,9 +20,7 @@ class EntityFSIO:
         if not osp.exists(target_dir):
             os.mkdir(target_dir)
         if print_message:
-            print(
-                f'{created_type}: "{osp.split(target_dir)[1]}" created, storage path: {target_dir}'
-            )
+            print(f'{created_type}: "{osp.split(target_dir)[1]}" created, storage path: {target_dir}')
 
     # >>>>>>>>>>>>>> Dealing with pytorch_lightning.loggers.CSVLogger's metrics.csv >>>>>>>>>>>>>>
     @staticmethod
@@ -61,9 +59,7 @@ class EntityFSIO:
         if osp.exists(osp.join(run_dir, "metrics.csv")):
             metrics_csv_files.append("metrics.csv")
         if len(metrics_csv_files) > 1:
-            with open(
-                osp.join(run_dir, "merged_metrics.csv"), "w"
-            ) as merged_metrics_csv:
+            with open(osp.join(run_dir, "merged_metrics.csv"), "w") as merged_metrics_csv:
                 for csv_idx, csv_filename in enumerate(metrics_csv_files):
                     with open(osp.join(run_dir, csv_filename)) as metrics_csv:
                         if csv_idx != 0:
@@ -121,8 +117,7 @@ class EntityFSIO:
     def mkdir_for_predictions(run_dir, prediction_dir_prefix="predictions") -> str:
         prediction_dir = osp.join(
             run_dir,
-            f"{prediction_dir_prefix}_"
-            f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
+            f"{prediction_dir_prefix}_" f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}",
         )
         os.mkdir(prediction_dir)
         return prediction_dir

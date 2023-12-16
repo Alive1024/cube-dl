@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
-from typing import List
 
 from .entities import ENTITY_T, Project
 
@@ -34,12 +33,12 @@ class ProjectDAO(_EntityDAOBase, metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def get_projects(output_dir: str) -> List[OrderedDict]:
+    def get_projects(output_dir: str) -> list[OrderedDict]:
         pass
 
     @staticmethod
     @abstractmethod
-    def get_all_projects_exps(output_dir: str) -> List[OrderedDict]:
+    def get_all_projects_exps(output_dir: str) -> list[OrderedDict]:
         pass
 
 
@@ -51,12 +50,12 @@ class ExperimentDAO(_EntityDAOBase, metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def get_exps_of(output_dir: str, proj_id: str) -> List[OrderedDict]:
+    def get_exps_of(output_dir: str, proj_id: str) -> list[OrderedDict]:
         pass
 
     @staticmethod
     @abstractmethod
-    def get_all_exps_runs(output_dir: str, proj_id: str) -> List[OrderedDict]:
+    def get_all_exps_runs(output_dir: str, proj_id: str) -> list[OrderedDict]:
         pass
 
 
@@ -73,5 +72,5 @@ class RunDAO(_EntityDAOBase, metaclass=ABCMeta):
 
     @staticmethod
     @abstractmethod
-    def get_runs_of(output_dir: str, proj_id: str, exp_id: str) -> List[OrderedDict]:
+    def get_runs_of(output_dir: str, proj_id: str, exp_id: str) -> list[OrderedDict]:
         pass

@@ -1,7 +1,7 @@
 import secrets
 import string
 from abc import ABCMeta
-from typing import List, Literal, Union
+from typing import Literal
 
 
 def generate_id(length: int = 8) -> str:
@@ -85,7 +85,7 @@ class Project(_EntityBase):
         return self._logger
 
     @logger.setter
-    def logger(self, value: Union[str, List[str]]):
+    def logger(self, value: str | list[str]):
         self._logger = value
 
 
@@ -166,4 +166,4 @@ class Run(_EntityBase):
         self._run_summary = value
 
 
-ENTITY_T = Union[Project, Experiment, Run]
+ENTITY_T = Project | Experiment | Run

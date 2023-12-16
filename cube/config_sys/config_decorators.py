@@ -3,7 +3,7 @@ Decorators for Getters in Config Files.
 """
 
 import inspect
-from typing import Callable
+from collections.abc import Callable
 
 from .root_config import RootConfig
 

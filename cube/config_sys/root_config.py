@@ -6,13 +6,18 @@ import shutil
 import sys
 import traceback
 from collections import OrderedDict
+from collections.abc import Callable, Iterable
 from contextlib import contextmanager
 from functools import partial
-from typing import Callable, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from typing import Literal
 
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger  # noqa
-from pytorch_lightning.loggers import CSVLogger, Logger, TensorBoardLogger
+from pytorch_lightning.loggers import (
+    CSVLogger,
+    Logger,
+    TensorBoardLogger,
+    WandbLogger,  # noqa
+)
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 from cube.c3lyr import EntityFSIO, Run
@@ -21,7 +26,7 @@ from cube.c3lyr import EntityFSIO, Run
 class RootConfig:
     JOB_TYPES_T = Literal["fit", "resume-fit", "validate", "test", "predict", "tune"]
     TRAINER_TYPES_T = Literal["default", "fit", "validate", "test", "predict", "tune"]
-    LOGGERS_T = Union[Logger, Iterable[Logger], bool]
+    LOGGERS_T = Logger | Iterable[Logger] | bool
 
     # Directly supported loggers
     LOGGERS = ("CSV", "TensorBoard", "wandb")
@@ -36,11 +41,11 @@ class RootConfig:
         # task_wrapper_getter: Callable[[], TaskWrapperBase],
         task_wrapper_getter,
         data_wrapper_getter: Callable[[], pl.LightningDataModule],
-        default_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
-        fit_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
-        validate_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
-        test_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
-        predict_trainer_getter: Optional[Callable[[LOGGERS_T], pl.Trainer]] = None,
+        default_trainer_getter: Callable[[LOGGERS_T], pl.Trainer] | None = None,
+        fit_trainer_getter: Callable[[LOGGERS_T], pl.Trainer] | None = None,
+        validate_trainer_getter: Callable[[LOGGERS_T], pl.Trainer] | None = None,
+        test_trainer_getter: Callable[[LOGGERS_T], pl.Trainer] | None = None,
+        predict_trainer_getter: Callable[[LOGGERS_T], pl.Trainer] | None = None,
         global_seed: int = 42,
     ):
         if (
@@ -81,12 +86,12 @@ class RootConfig:
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
         # >>>>>>>>>>>>>>>>>>>>>>>> Core Attributes >>>>>>>>>>>>>>>>>>>>>>>>
-        self.task_wrapper: Optional[pl.LightningModule] = None
-        self.data_wrapper: Optional[pl.LightningDataModule] = None
-        self.fit_trainer: Optional[pl.Trainer] = None
-        self.validate_trainer: Optional[pl.Trainer] = None
-        self.test_trainer: Optional[pl.Trainer] = None
-        self.predict_trainer: Optional[pl.Trainer] = None
+        self.task_wrapper: pl.LightningModule | None = None
+        self.data_wrapper: pl.LightningDataModule | None = None
+        self.fit_trainer: pl.Trainer | None = None
+        self.validate_trainer: pl.Trainer | None = None
+        self.test_trainer: pl.Trainer | None = None
+        self.predict_trainer: pl.Trainer | None = None
 
         # Organize the trainers into a dict, convenient for enumeration and extension.
         self._trainers = OrderedDict(
@@ -96,21 +101,15 @@ class RootConfig:
                         "getter": self.default_trainer_getter,
                     }
                 ),
-                "fit": OrderedDict(
-                    {"getter": self.fit_trainer_getter, "obj": self.fit_trainer}
-                ),
+                "fit": OrderedDict({"getter": self.fit_trainer_getter, "obj": self.fit_trainer}),
                 "validate": OrderedDict(
                     {
                         "getter": self.validate_trainer_getter,
                         "obj": self.validate_trainer,
                     }
                 ),
-                "test": OrderedDict(
-                    {"getter": self.test_trainer_getter, "obj": self.test_trainer}
-                ),
-                "predict": OrderedDict(
-                    {"getter": self.predict_trainer_getter, "obj": self.predict_trainer}
-                ),
+                "test": OrderedDict({"getter": self.test_trainer_getter, "obj": self.test_trainer}),
+                "predict": OrderedDict({"getter": self.predict_trainer_getter, "obj": self.predict_trainer}),
             }
         )
 
@@ -121,9 +120,7 @@ class RootConfig:
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Tracking Hyper Parameters >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @contextmanager
-    def _collect_frame_locals(
-        self, collect_type: Literal["task_wrapper", "data_wrapper", "trainer"]
-    ):
+    def _collect_frame_locals(self, collect_type: Literal["task_wrapper", "data_wrapper", "trainer"]):
         """
         A context manager to wrap some code with `sys.profile`.
         The specific collect function is specified by the argument `collect_type`.
@@ -172,9 +169,7 @@ class RootConfig:
         ):
             return
 
-        f_locals = (
-            frame.f_locals
-        )  # the local variables seen by the current stack frame, a dict
+        f_locals = frame.f_locals  # the local variables seen by the current stack frame, a dict
         if "self" in f_locals:  # for normal objects, there must be "self"
             # Put the local variables into a dict, using the address as key. Note that the local variables include
             # both arguments of `__init__` and variables defined within `__init__`.
@@ -218,7 +213,7 @@ class RootConfig:
         if "self" in f_locals and frame.f_code.co_name == "__init__":
             self._init_local_vars[id(f_locals["self"])] = f_locals
 
-    def _parse_frame_locals_into_hparams(
+    def _parse_frame_locals_into_hparams(  # noqa: C901
         self,
         part_key: Literal[
             "task_wrapper",
@@ -236,22 +231,20 @@ class RootConfig:
                 e.g. the return value of `torch.nn.Module.parameters`.
         """
 
-        def __parse_obj(key, value, dst: Union[OrderedDict, List]):
+        def __parse_obj(key, value, dst: OrderedDict | list):
             """Parsing general objects, used in `_parse_fn`."""
             if id(value) in all_init_args:
-                new_dst = OrderedDict(
-                    {"type": str(value.__class__), "args": OrderedDict()}  # class type
-                )
+                new_dst = OrderedDict({"type": str(value.__class__), "args": OrderedDict()})  # class type
                 if isinstance(dst, OrderedDict):
                     dst[key] = new_dst
-                elif isinstance(dst, List):
+                elif isinstance(dst, list):
                     dst.append(new_dst)
                 _parse_fn(key, all_init_args[id(value)], new_dst["args"])
 
-        def _parse_fn(
+        def _parse_fn(  # noqa: C901
             key,
             value,
-            dst: Union[OrderedDict, List],
+            dst: OrderedDict | list,
             exclusive_keys: Iterable = ("self",),
         ):
             # Get rid of specific key(s), "self" must be excluded, otherwise infinite recursion will happen.
@@ -259,10 +252,10 @@ class RootConfig:
                 return
 
             # Atomic data types
-            if (value is None) or (isinstance(value, (bool, int, float, complex, str))):
+            if (value is None) or (isinstance(value, bool | int | float | complex | str)):
                 if isinstance(dst, OrderedDict):
                     dst[key] = value
-                elif isinstance(dst, List):
+                elif isinstance(dst, list):
                     dst.append(value)
 
             # Iterable data types
@@ -291,7 +284,7 @@ class RootConfig:
                     new_dst = []  # use list to store Iterable data
                     if isinstance(dst, OrderedDict):
                         dst[key] = new_dst
-                    elif isinstance(dst, List):
+                    elif isinstance(dst, list):
                         dst.append(new_dst)
 
                     for idx, v in enumerate(value):
@@ -304,21 +297,14 @@ class RootConfig:
             else:
                 __parse_obj(key, value, dst)
 
-        # Finding the starting point of parsing, i.e. the object we are creating
+        # Find the starting point of parsing, i.e. the object being creating
         target_obj_locals_dict = None
         for local_vars in self._init_local_vars.values():
             value_type = type(local_vars["self"])
-            if part_key == "task_wrapper" and value_type == self.task_wrapper.__class__:
-                target_obj_locals_dict = local_vars
-                break
-            elif (
-                part_key == "data_wrapper" and value_type == self.data_wrapper.__class__
-            ):
-                target_obj_locals_dict = local_vars
-                break
-            elif (
-                part_key.find("trainer") != -1
-                and value_type == getattr(self, part_key).__class__
+            if (
+                (part_key == "task_wrapper" and value_type == self.task_wrapper.__class__)
+                or (part_key == "data_wrapper" and value_type == self.data_wrapper.__class__)
+                or (part_key.find("trainer") != -1 and value_type == getattr(self, part_key).__class__)
             ):
                 target_obj_locals_dict = local_vars
                 break
@@ -329,9 +315,7 @@ class RootConfig:
         for var_id, local_vars in self._init_local_vars.items():
             all_init_args[var_id] = {}
             # Get the names of arguments of `__init__` through its signature
-            init_args_names = inspect.signature(
-                local_vars["self"].__class__.__init__
-            ).parameters.keys()
+            init_args_names = inspect.signature(local_vars["self"].__class__.__init__).parameters.keys()
             for arg_name in init_args_names:
                 # Ignore placeholder arguments "args" and "kwargs"
                 if arg_name not in ("args", "kwargs"):
@@ -350,11 +334,11 @@ class RootConfig:
         self._init_local_vars.clear()
 
     @staticmethod
-    def _add_hparams_to_logger(loggers: Union[dict, bool], hparams: dict):
+    def _add_hparams_to_logger(loggers: dict | bool, hparams: dict):
         """
         Some loggers support for logging hyper-parameters, call their APIs here.
         """
-        if loggers:
+        if loggers:  # noqa: SIM102
             # Executed only on rank 0, more details at: https://github.com/Lightning-AI/lightning/issues/13166
             if "wandb" in loggers and rank_zero_only.rank == 0:  # noqa
                 # Note: use directly wandb module here (i.e. `wandb.config.update(hparams)`)
@@ -365,9 +349,7 @@ class RootConfig:
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Setting up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     @staticmethod
-    def _setup_logger(
-        logger_arg: Union[str, List[str]], run: Run
-    ) -> Union[Dict[str, LOGGERS_T], bool]:
+    def _setup_logger(logger_arg: str | list[str], run: Run) -> dict[str, LOGGERS_T] | bool:
         loggers = {}
         belonging_exp = run.belonging_exp
         belonging_proj = belonging_exp.belonging_proj
@@ -402,11 +384,7 @@ class RootConfig:
                     job_type=run.job_type,
                     id=run.global_id,
                 )
-                logger_instance = (
-                    get_wandb_logger(resume="must")
-                    if run.is_resuming
-                    else get_wandb_logger()
-                )
+                logger_instance = get_wandb_logger(resume="must") if run.is_resuming else get_wandb_logger()
             else:
                 raise ValueError("Unrecognized logger name: " + logger_str)
 
@@ -422,7 +400,7 @@ class RootConfig:
         with self._collect_frame_locals("data_wrapper"):
             self.data_wrapper = self.data_wrapper_getter()
 
-    def setup_trainer(self, logger_arg: Union[str, List[str]], run: Run):
+    def setup_trainer(self, logger_arg: str | list[str], run: Run):
         """
         Instantiate the trainer(s) using the getters.
         :param logger_arg:
@@ -452,9 +430,7 @@ class RootConfig:
                 self.predict_trainer = self.predict_trainer_getter(logger_param)
 
         RootConfig._add_hparams_to_logger(self.loggers, self._hparams)
-        EntityFSIO.save_hparams(
-            run.run_dir, self._hparams, global_seed=self.global_seed
-        )
+        EntityFSIO.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
         self._hparams.clear()  # clear self._hparams after saved
 
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -469,20 +445,15 @@ class RootConfig:
         if not osp.exists(dir_path):
             os.mkdir(dir_path)
             if as_python_package:
-                f = open(
-                    osp.join(dir_path, "__init__.py"), "w"
-                )  # make it become a Python package
-                f.close()
+                # Make it become a Python package
+                with open(osp.join(dir_path, "__init__.py"), "w"):
+                    pass
 
     @staticmethod
     def _copy_file_from_getter(getter_func, dst_dir):
         if getter_func:
-            original_file_path = inspect.getfile(
-                getter_func
-            )  # get the file path to the getter function
-            shutil.copyfile(
-                original_file_path, osp.join(dst_dir, osp.split(original_file_path)[1])
-            )
+            original_file_path = inspect.getfile(getter_func)  # get the file path to the getter function
+            shutil.copyfile(original_file_path, osp.join(dst_dir, osp.split(original_file_path)[1]))
 
     @rank_zero_only
     def archive_config_into_dir_or_zip(
@@ -538,9 +509,7 @@ class RootConfig:
     # Merge the configs into single file.
 
     @staticmethod
-    def _get_import_stats_global_vars(
-        getter_func, excludes
-    ) -> Tuple[List[str], List[str]]:
+    def _get_import_stats_global_vars(getter_func, excludes) -> tuple[list[str], list[str]]:
         """
         Return the filtered import statements (& global variables) from getter's source code.
         """
@@ -549,9 +518,7 @@ class RootConfig:
 
         import_stats, global_vars = [], []
         with open(inspect.getsourcefile(getter_func)) as f:
-            tree = ast.parse(
-                f.read()
-            )  # get the abstract syntax tree of the source file
+            tree = ast.parse(f.read())  # get the abstract syntax tree of the source file
             f.seek(0)
             code_lines = f.readlines()
             # Insert a meaningless element at the index 0, because `ast.AST`'s `lineno` is 1-indexed.
@@ -559,7 +526,7 @@ class RootConfig:
             code_lines.insert(0, "")
 
         for node in tree.body:
-            if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.Import | ast.ImportFrom):
                 # Copy corresponding import lines(s) from source file
                 import_src = "".join(code_lines[node.lineno : node.end_lineno + 1])
 
@@ -574,9 +541,7 @@ class RootConfig:
                     import_stats.append(import_src)
             # Global variables
             elif isinstance(node, ast.Assign):
-                global_vars.append(
-                    "".join(code_lines[node.lineno : node.end_lineno + 1])
-                )
+                global_vars.append("".join(code_lines[node.lineno : node.end_lineno + 1]))
 
         return import_stats, global_vars
 
@@ -590,13 +555,9 @@ class RootConfig:
             return None, root_config_src
 
         trainer_src = inspect.getsource(trainer_getter_func)
-        trainer_src = "\n".join(
-            ["\t" + line for line in trainer_src.split("\n")]
-        )  # add tabs
+        trainer_src = "\n".join(["\t" + line for line in trainer_src.split("\n")])  # add tabs
         cls_name = f"{kind.capitalize()}TrainerGetter"
-        trainer_src = f"class {cls_name}:\n\t@staticmethod\n{trainer_src}".expandtabs(
-            tabsize=4
-        )
+        trainer_src = f"class {cls_name}:\n\t@staticmethod\n{trainer_src}".expandtabs(tabsize=4)
         return trainer_src, root_config_src.replace(
             f"{kind}_trainer_getter={trainer_getter_func.__name__}",
             f"{kind}_trainer_getter={cls_name}." f"{trainer_getter_func.__name__}",
@@ -610,18 +571,13 @@ class RootConfig:
         if inspect.getsourcefile(self.data_wrapper_getter) != root_config_src_path:
             return False
         for trainer in self._trainers.values():
-            if (
-                trainer["getter"]
-                and inspect.getsourcefile(trainer["getter"]) != root_config_src_path
-            ):
+            if trainer["getter"] and inspect.getsourcefile(trainer["getter"]) != root_config_src_path:
                 return False
 
         return True
 
     @rank_zero_only
-    def archive_config_into_single(
-        self, root_config_getter_func: Callable, archived_configs_dir: str, run_id: str
-    ):
+    def archive_config_into_single(self, root_config_getter_func: Callable, archived_configs_dir: str, run_id: str):
         """Save archived config to single file."""
         archived_config_filename = f"archived_config_run_{run_id}.py"
 
@@ -642,47 +598,33 @@ class RootConfig:
                 if trainer["getter"]:
                     excludes.append(trainer["getter"].__name__)
 
-            get_import_stats_global_vars = partial(
-                RootConfig._get_import_stats_global_vars, excludes=excludes
-            )
+            get_import_stats_global_vars = partial(RootConfig._get_import_stats_global_vars, excludes=excludes)
             all_import_stats, all_global_vars = [], []
-            with open(
-                osp.join(archived_configs_dir, archived_config_filename), "w"
-            ) as f:
+            with open(osp.join(archived_configs_dir, archived_config_filename), "w") as f:
                 # >>>>>>>>>>> Import Statements (& global variables) >>>>>>>>>>>
                 # 1. Model
-                import_stats, global_vars = get_import_stats_global_vars(
-                    self.model_getter
-                )
+                import_stats, global_vars = get_import_stats_global_vars(self.model_getter)
                 all_import_stats.extend(import_stats)
                 all_global_vars.extend(global_vars)
 
                 # 2. Task wrapper
-                import_stats, global_vars = get_import_stats_global_vars(
-                    self.task_wrapper_getter
-                )
+                import_stats, global_vars = get_import_stats_global_vars(self.task_wrapper_getter)
                 all_import_stats.extend(import_stats)
                 all_global_vars.extend(global_vars)
 
                 # 3. Data wrapper
-                import_stats, global_vars = get_import_stats_global_vars(
-                    self.data_wrapper_getter
-                )
+                import_stats, global_vars = get_import_stats_global_vars(self.data_wrapper_getter)
                 all_import_stats.extend(import_stats)
                 all_global_vars.extend(global_vars)
 
                 # 4. Trainer(s)
                 for trainer in self._trainers.values():
-                    import_stats, global_vars = get_import_stats_global_vars(
-                        trainer["getter"]
-                    )
+                    import_stats, global_vars = get_import_stats_global_vars(trainer["getter"])
                     all_import_stats.extend(import_stats)
                     all_global_vars.extend(global_vars)
 
                 # 5. Root config
-                import_stats, global_vars = get_import_stats_global_vars(
-                    root_config_getter_func
-                )
+                import_stats, global_vars = get_import_stats_global_vars(root_config_getter_func)
                 all_import_stats.extend(import_stats)
                 all_global_vars.extend(global_vars)
 

@@ -37,9 +37,7 @@ ARCHIVED_CONFIGS_FORMAT: Literal["SINGLE_PY", "ZIP", "DIR"] = "SINGLE_PY"
 
 def _check_trainer(trainer: pl.Trainer, job_type: RootConfig.JOB_TYPES_T):
     if not trainer:
-        raise ValueError(
-            f"There is no trainer for {job_type}, please specify it in the Config instance."
-        )
+        raise ValueError(f"There is no trainer for {job_type}, please specify it in the Config instance.")
 
 
 def _get_root_config_instance(config_file_path, return_getter=False):
@@ -54,9 +52,7 @@ def _get_root_config_instance(config_file_path, return_getter=False):
         import_path = import_path[:-3]
 
     try:
-        root_config_getter = getattr(
-            importlib.import_module(import_path), RootConfig.ROOT_CONFIG_GETTER_NAME
-        )
+        root_config_getter = getattr(importlib.import_module(import_path), RootConfig.ROOT_CONFIG_GETTER_NAME)
         config_instance: RootConfig = root_config_getter()
     except AttributeError:
         raise AttributeError(
@@ -119,10 +115,10 @@ def add_exp(args: argparse.Namespace):
     DAOFactory.get_exp_dao().insert_entry(exp)
 
 
-def ls(args: argparse.Namespace):
+def ls(args: argparse.Namespace):  # noqa: C901
     def _draw_table(rich_table, items, prompt_on_empty):
         if len(items) > 0:
-            for column_name in items[0].keys():
+            for column_name in items[0]:
                 rich_table.add_column(column_name, overflow="fold")
             for item in items:
                 rich_table.add_row(*list(item.values()))
@@ -139,20 +135,14 @@ def ls(args: argparse.Namespace):
         if len(items) > 0:
             # Add header to the outer table
             for idx, outer_column_name in enumerate(items[0].keys()):
-                rich_table.add_column(
-                    outer_column_name, overflow="fold", ratio=width_ratios[idx]
-                )
+                rich_table.add_column(outer_column_name, overflow="fold", ratio=width_ratios[idx])
 
             for item in items:
                 inner_table = Table(show_header=True, header_style="bold green")
                 if len(item[inner_table_key]) > 0:
                     # Add header to the inner table
-                    for idx, inner_column_name in enumerate(
-                        item[inner_table_key][0].keys()
-                    ):
-                        inner_table.add_column(
-                            inner_column_name, overflow="fold", ratio=width_ratios[idx]
-                        )
+                    for idx, inner_column_name in enumerate(item[inner_table_key][0].keys()):
+                        inner_table.add_column(inner_column_name, overflow="fold", ratio=width_ratios[idx])
                     # Add rows to the inner table
                     for exp in item[inner_table_key]:
                         inner_table.add_row(*list(exp.values()))
@@ -163,9 +153,7 @@ def ls(args: argparse.Namespace):
             print(prompt_on_empty)
 
     console = Console()
-    get_table = partial(
-        Table, show_header=True, header_style="bold blue", width=console.width
-    )
+    get_table = partial(Table, show_header=True, header_style="bold blue", width=console.width)
 
     # Print all projects and exps
     if args.projs_exps:
@@ -191,9 +179,7 @@ def ls(args: argparse.Namespace):
 
     elif args.exps_runs_of:
         exp_dao = DAOFactory.get_exp_dao()
-        table = get_table(
-            title=f'All Exps and Runs of Proj "{args.exps_runs_of}" in "{OUTPUT_DIR}"'
-        )
+        table = get_table(title=f'All Exps and Runs of Proj "{args.exps_runs_of}" in "{OUTPUT_DIR}"')
         exps_runs = exp_dao.get_all_exps_runs(OUTPUT_DIR, proj_id=args.exps_runs_of)
         _draw_nested_table(
             table,
@@ -216,25 +202,19 @@ def ls(args: argparse.Namespace):
     else:
         run_dao = DAOFactory.get_run_dao()
         table = get_table(
-            title=f'All Runs of exp "{args.runs_of[1]}" of '
-            f'proj "{args.runs_of[0]}" in "{OUTPUT_DIR}"'
+            title=f'All Runs of exp "{args.runs_of[1]}" of ' f'proj "{args.runs_of[0]}" in "{OUTPUT_DIR}"'
         )
         _draw_table(
             table,
-            run_dao.get_runs_of(
-                OUTPUT_DIR, proj_id=args.runs_of[0], exp_id=args.runs_of[1]
-            ),
-            f'There is no run of exp "{args.runs_of[1]}" of '
-            f'proj "{args.runs_of[0]}" in "{OUTPUT_DIR}".',
+            run_dao.get_runs_of(OUTPUT_DIR, proj_id=args.runs_of[0], exp_id=args.runs_of[1]),
+            f'There is no run of exp "{args.runs_of[1]}" of ' f'proj "{args.runs_of[0]}" in "{OUTPUT_DIR}".',
         )
 
     console.print(table)
 
 
-def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
-    root_config_instance, root_config_getter = _get_root_config_instance(
-        args.config_file, return_getter=True
-    )
+def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):  # noqa: C901
+    root_config_instance, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
 
     pl.seed_everything(root_config_instance.global_seed)
 
@@ -245,9 +225,7 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
     # When resuming fit, the run should resume from the original.
     if job_type == "resume-fit":
         proj_id, exp_id, run_id = run_dao.parse_ids_from_ckpt_path(args.resume_from)
-        run = run_dao.get_run_from_id(
-            OUTPUT_DIR, proj_id=proj_id, exp_id=exp_id, run_id=run_id
-        )
+        run = run_dao.get_run_from_id(OUTPUT_DIR, proj_id=proj_id, exp_id=exp_id, run_id=run_id)
         run.is_resuming = True
         EntityFSIO.process_metrics_csv(run.run_dir)
 
@@ -287,9 +265,7 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
                 to_zip=False,
             )
         else:
-            raise ValueError(
-                f"Unrecognized ARCHIVED_CONFIGS_FORMAT: {ARCHIVED_CONFIGS_FORMAT}"
-            )
+            raise ValueError(f"Unrecognized ARCHIVED_CONFIGS_FORMAT: {ARCHIVED_CONFIGS_FORMAT}")
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # Set preset environment variables
@@ -300,9 +276,7 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         print("Logging has been off.")
         root_config_instance.setup_trainer(logger_arg="false", run=run)
     else:
-        root_config_instance.setup_trainer(
-            logger_arg=run.belonging_exp.belonging_proj.logger, run=run
-        )
+        root_config_instance.setup_trainer(logger_arg=run.belonging_exp.belonging_proj.logger, run=run)
 
     if job_type == "fit":
         _check_trainer(root_config_instance.fit_trainer, job_type)
@@ -327,19 +301,13 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         _check_trainer(root_config_instance.validate_trainer, job_type)
         if args.loaded_ckpt is not None:
             # Load the specified checkpoint
-            loaded_task_wrapper = (
-                root_config_instance.task_wrapper.__class__.load_from_checkpoint(
-                    args.loaded_ckpt,
-                    **root_config_instance.task_wrapper.get_init_args(),
-                )
+            loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
+                args.loaded_ckpt,
+                **root_config_instance.task_wrapper.get_init_args(),
             )
-            root_config_instance.task_wrapper = (
-                loaded_task_wrapper  # update the task wrapper
-            )
+            root_config_instance.task_wrapper = loaded_task_wrapper  # update the task wrapper
 
-        run_dao.set_extra_data(
-            run, loaded_ckpt=args.loaded_ckpt
-        )  # Save the loaded ckpt info
+        run_dao.set_extra_data(run, loaded_ckpt=args.loaded_ckpt)  # Save the loaded ckpt info
         root_config_instance.validate_trainer.validate(
             model=root_config_instance.task_wrapper,
             datamodule=root_config_instance.data_wrapper,
@@ -349,11 +317,9 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         _check_trainer(root_config_instance.test_trainer, job_type)
         # Same as "validate"
         if args.loaded_ckpt is not None:
-            loaded_task_wrapper = (
-                root_config_instance.task_wrapper.__class__.load_from_checkpoint(
-                    args.loaded_ckpt,
-                    **root_config_instance.task_wrapper.get_init_args(),
-                )
+            loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
+                args.loaded_ckpt,
+                **root_config_instance.task_wrapper.get_init_args(),
             )
             root_config_instance.task_wrapper = loaded_task_wrapper
 
@@ -367,11 +333,9 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
         _check_trainer(root_config_instance.predict_trainer, job_type)
         # Same as "validate"
         if args.loaded_ckpt is not None:
-            loaded_task_wrapper = (
-                root_config_instance.task_wrapper.__class__.load_from_checkpoint(
-                    args.loaded_ckpt,
-                    **root_config_instance.task_wrapper.get_init_args(),
-                )
+            loaded_task_wrapper = root_config_instance.task_wrapper.__class__.load_from_checkpoint(
+                args.loaded_ckpt,
+                **root_config_instance.task_wrapper.get_init_args(),
             )
             root_config_instance.task_wrapper = loaded_task_wrapper
 
@@ -380,9 +344,7 @@ def _exec(args: argparse.Namespace, job_type: RootConfig.JOB_TYPES_T):
             model=root_config_instance.task_wrapper,
             datamodule=root_config_instance.data_wrapper,
         )
-        root_config_instance.task_wrapper.save_predictions(
-            predictions, EntityFSIO.mkdir_for_predictions(run.run_dir)
-        )
+        root_config_instance.task_wrapper.save_predictions(predictions, EntityFSIO.mkdir_for_predictions(run.run_dir))
 
     else:
         raise ValueError(f"Unrecognized job type: {job_type}!")
@@ -448,9 +410,7 @@ def main():
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>> Subcommand 2: add-exp >>>>>>>>>>>>>>>>>>>>>>>
-    parser_exp = subparsers.add_parser(
-        "add-exp", help="Create a new exp within specified proj."
-    )
+    parser_exp = subparsers.add_parser("add-exp", help="Create a new exp within specified proj.")
     parser_exp.add_argument(
         "-p",
         "--proj-id",
@@ -479,9 +439,7 @@ def main():
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand 3: ls >>>>>>>>>>>>>>>>>>>>>>>>>>
-    parser_ls = subparsers.add_parser(
-        "ls", help="Display info about proj, exp and runs in tables."
-    )
+    parser_ls = subparsers.add_parser("ls", help="Display info about proj, exp and runs in tables.")
     # These params are exclusive to each other, and one of them is required.
     param_group_ls = parser_ls.add_mutually_exclusive_group(required=True)
     param_group_ls.add_argument(
@@ -491,9 +449,7 @@ def main():
         action="store_true",
         help="Display all projs and exps.",
     )
-    param_group_ls.add_argument(
-        "-p", "--projs", action="store_true", help="Display all projs."
-    )
+    param_group_ls.add_argument("-p", "--projs", action="store_true", help="Display all projs.")
     param_group_ls.add_argument(
         "-er",
         "--exps-runs-of",
@@ -547,12 +503,8 @@ def main():
         required=True,
         help="ID of the exp that the new run belongs to.",
     )
-    exec_parent_parser.add_argument(
-        "-n", "--name", type=str, required=True, help="Name of the new run."
-    )
-    exec_parent_parser.add_argument(
-        "-d", "--desc", type=str, required=True, help="Description of the new run."
-    )
+    exec_parent_parser.add_argument("-n", "--name", type=str, required=True, help="Name of the new run.")
+    exec_parent_parser.add_argument("-d", "--desc", type=str, required=True, help="Description of the new run.")
     exec_parent_parser.add_argument(
         "-o",
         "--off-log",
@@ -571,9 +523,7 @@ def main():
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>> Subcommand 5: resume-fit >>>>>>>>>>>
-    parser_resume_fit = subparsers.add_parser(
-        "resume-fit", help="Resume an interrupted fit run."
-    )
+    parser_resume_fit = subparsers.add_parser("resume-fit", help="Resume an interrupted fit run.")
     parser_resume_fit.add_argument(
         "-c",
         "--config-file",
