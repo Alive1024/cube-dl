@@ -1,6 +1,5 @@
 """Decorators for getters in config files."""
 
-import inspect
 from collections.abc import Callable
 
 from .root_config import RootConfig
@@ -32,11 +31,5 @@ def cube_data_module(getter_func: Callable):
 
 
 def cube_runner(getter_func: Callable):
-    # Ensure the trainer getter has a parameter named "logger" to allow passing logger(s)
-    param_names = inspect.signature(getter_func).parameters.keys()
-    if (len(param_names) == 0) or ("logger" not in param_names):
-        raise RuntimeError(
-            "The runner getter must have a parameter named `logger`, e.g. "
-            "`@cube_runner\ndef get_fit_runner(logger):\n\t...`"
-        )
+    """Do nothing at present, defined for symmetry and future extension."""
     return getter_func

@@ -17,7 +17,7 @@ from cube.c3lyr import Run
 from cube.callbacks.callback import CubeCallback, CubeCallbackList
 from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
 from cube.dist_utils import rank_zero_only
-from cube.types import LOGGER_GETTER_T, LOGGER_T, RUNNER_TYPES_T
+from cube.types import RUNNER_TYPES_T
 
 ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"]
 
@@ -32,13 +32,12 @@ class RootConfig:
         model_getters,
         task_module_getter: Callable[[], CubeTaskModule],
         data_module_getter: Callable[[], CubeTaskModule],
-        default_runner_getter: Callable[[LOGGER_T], CubeRunner] | None = None,
-        fit_runner_getter: Callable[[LOGGER_T], CubeRunner] | None = None,
-        validate_runner_getter: Callable[[LOGGER_T], CubeRunner] | None = None,
-        test_runner_getter: Callable[[LOGGER_T], CubeRunner] | None = None,
-        predict_runner_getter: Callable[[LOGGER_T], CubeRunner] | None = None,
-        logger_getters: LOGGER_GETTER_T | Iterable[LOGGER_GETTER_T] | None = None,
-        seed_func: Callable,
+        default_runner_getter: Callable[[], CubeRunner] | None = None,
+        fit_runner_getter: Callable[[], CubeRunner] | None = None,
+        validate_runner_getter: Callable[[], CubeRunner] | None = None,
+        test_runner_getter: Callable[[], CubeRunner] | None = None,
+        predict_runner_getter: Callable[[], CubeRunner] | None = None,
+        seed_func: Callable[[int | None], None],
         global_seed: int | None = 42,
         archive_hparams: bool = True,
         archive_config: ARCHIVED_CONFIG_FORMAT | bool = "single-py",
@@ -105,7 +104,6 @@ class RootConfig:
 
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-        self.logger_getters = logger_getters
         seed_func(global_seed)
         self.global_seed = global_seed
         self.archive_hparams = archive_hparams
@@ -369,27 +367,24 @@ class RootConfig:
     def setup_runners(self, run: Run):  # noqa: C901
         """Set up the runner(s) using the getters."""
         self._cur_run_job_type = job_type = run.job_type
-        logger_param = (
-            False if self.logger_getters is None else [logger_getter(run) for logger_getter in self.logger_getters]
-        )
 
         with self._collect_frame_locals("runner", enabled=self.archive_hparams):
             if job_type == "fit":
                 if self.fit_runner_getter is None:
                     self.fit_runner_getter = self.default_runner_getter
-                self.fit_runner = self.fit_runner_getter(logger_param)
+                self.fit_runner = self.fit_runner_getter()
             elif job_type == "validate":
                 if self.validate_runner_getter is None:
                     self.validate_runner_getter = self.default_runner_getter
-                self.validate_runner = self.validate_runner_getter(logger_param)
+                self.validate_runner = self.validate_runner_getter()
             elif job_type == "test":
                 if self.test_runner_getter is None:
                     self.test_runner_getter = self.default_runner_getter
-                self.test_runner = self.test_runner_getter(logger_param)
+                self.test_runner = self.test_runner_getter()
             elif job_type == "predict":
                 if self.predict_runner_getter is None:
                     self.predict_runner_getter = self.default_runner_getter
-                self.predict_runner = self.predict_runner_getter(logger_param)
+                self.predict_runner = self.predict_runner_getter()
 
         # Save hyper-parameters
         if self.archive_hparams:

@@ -13,7 +13,7 @@ from rich.table import Table
 
 from cube.c3lyr import DAOFactory, EntityFactory
 from cube.config_sys import RootConfig
-from cube.core import CubeRunner
+from cube.core import CUBE_CONTEXT, CubeRunner
 from cube.types import JOB_TYPES_T
 
 # Add current working directory to PYTHONPATH  # noqa
@@ -112,17 +112,15 @@ def _parse_args():
         help="ID of the proj that the new exp belongs to.",
     )
     parser_exp.add_argument(
-        "-en",
-        "--exp-name",
-        "--exp_name",
+        "-n",
+        "--name",
         type=str,
         required=True,
         help="Name of the new exp.",
     )
     parser_exp.add_argument(
-        "-ed",
-        "--exp-desc",
-        "--exp_desc",
+        "-d",
+        "--desc",
         type=str,
         required=False,
         default="",
@@ -289,8 +287,8 @@ def init(args: argparse.Namespace):
 
 def add_exp(args: argparse.Namespace):
     exp = EntityFactory.get_exp_instance(
-        name=args.exp_name,
-        desc=args.exp_desc,
+        name=args.name,
+        desc=args.desc,
         output_dir=CUBE_CONFIGS["output_dir"],
         proj_id=args.proj_id,
     )
@@ -421,9 +419,7 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
         run_dao.insert_entry(run)
         run.is_resuming = False
 
-    # Set preset environment variables
-    os.environ["CUBE_RUN_DIR"] = run.run_dir
-    os.environ["CUBE_RUN_IS_RESUMING"] = str(run.is_resuming)
+    CUBE_CONTEXT["run"] = run
 
     # Set up the task module and the data module.
     root_config.setup_task_data_modules()
@@ -473,10 +469,6 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
         raise ValueError(f"Unrecognized job type: {job_type}!")
 
     root_config.callbacks.on_run_end()
-
-    # Delete preset environment variables
-    del os.environ["CUBE_RUN_DIR"]
-    del os.environ["CUBE_RUN_IS_RESUMING"]
 
 
 def main():

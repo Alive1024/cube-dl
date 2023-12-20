@@ -7,6 +7,7 @@ from cube.config_sys import (
     cube_task_module,
     shared_config,
 )
+from cube.core import CUBE_CONTEXT
 from pytorch_lightning.callbacks import RichProgressBar
 from torch import nn, optim
 from torchmetrics import MetricCollection
@@ -51,12 +52,13 @@ def get_task_module():
 
 
 @cube_runner
-def get_fit_runner(logger):
+def get_fit_runner():
+    run = CUBE_CONTEXT["run"]
     return pl.Trainer(
         accelerator="auto",
         max_epochs=shared_config.get("max_epochs"),
         callbacks=[RichProgressBar()],
-        logger=logger,
+        logger=get_csv_logger(run),
     )
 
 
@@ -71,7 +73,6 @@ def get_root_config():
         task_module_getter=get_task_module,
         data_module_getter=get_mnist_data_module,
         fit_runner_getter=get_fit_runner,
-        logger_getters=[get_csv_logger],
         seed_func=pl.seed_everything,
         global_seed=42,
         archive_hparams=False,
