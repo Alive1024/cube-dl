@@ -13,6 +13,8 @@ from contextlib import contextmanager
 from functools import partial
 from typing import Literal
 
+from torch.nn import Module
+
 from cube.c3lyr import Run
 from cube.callbacks.callback import CubeCallback, CubeCallbackList
 from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
@@ -20,6 +22,7 @@ from cube.dist_utils import rank_zero_only
 from cube.types import RUNNER_TYPES_T
 
 ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"]
+RUNNER_GETTER_T = Callable[[], CubeRunner]
 
 
 class RootConfig:
@@ -29,14 +32,14 @@ class RootConfig:
     def __init__(
         self,
         *,  # Compulsory keyword arguments, for better readability in config files.
-        model_getters,
+        model_getters: Callable[[], Module] | Iterable[Callable[[], Module]],
         task_module_getter: Callable[[], CubeTaskModule],
-        data_module_getter: Callable[[], CubeTaskModule],
-        default_runner_getter: Callable[[], CubeRunner] | None = None,
-        fit_runner_getter: Callable[[], CubeRunner] | None = None,
-        validate_runner_getter: Callable[[], CubeRunner] | None = None,
-        test_runner_getter: Callable[[], CubeRunner] | None = None,
-        predict_runner_getter: Callable[[], CubeRunner] | None = None,
+        data_module_getter: Callable[[], CubeDataModule],
+        default_runner_getter: RUNNER_GETTER_T | None = None,
+        fit_runner_getter: RUNNER_GETTER_T | None = None,
+        validate_runner_getter: RUNNER_GETTER_T | None = None,
+        test_runner_getter: RUNNER_GETTER_T | None = None,
+        predict_runner_getter: RUNNER_GETTER_T | None = None,
         seed_func: Callable[[int | None], None],
         global_seed: int | None = 42,
         archive_hparams: bool = True,
