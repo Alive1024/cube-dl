@@ -3,7 +3,7 @@ name: Packaging Wheel
 on:
   push:
     branches: ["main"]
-    paths: ["**", "!**.md"]
+    paths: ["cube/**", "!**.md"]
 
   workflow_dispatch:
 

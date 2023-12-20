@@ -155,9 +155,7 @@ class RootConfig:
             yield
 
     def _collect_task_module_frame_locals(self, frame, event, _):
-        """
-        The callback function for `sys.setprofile`, used to collect local variables when initializing task wrapper.
-        """
+        """A callback function for `sys.setprofile`, used to collect local variables when initializing task module."""
         # Only caring about the function "return" events.
         # Just before the function returns, there exist all local variables we want.
         if event != "return":
