@@ -16,7 +16,7 @@ from typing import Literal
 from torch.nn import Module
 
 from cube.c3lyr import Run
-from cube.callbacks.callback import CubeCallback, CubeCallbackList
+from cube.callback import CubeCallback, CubeCallbackList
 from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
 from cube.dist_utils import rank_zero_only
 from cube.types import RUNNER_TYPES_T

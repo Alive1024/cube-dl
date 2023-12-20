@@ -3,7 +3,7 @@ import os.path as osp
 import re
 import shutil
 
-from cube.callbacks import CubeCallback
+from cube.callback import CubeCallback
 from cube.core import CUBE_CONTEXT
 from cube.dist_utils import rank_zero_only
 

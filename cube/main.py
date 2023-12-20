@@ -474,7 +474,7 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
 def main():
     config_path = osp.join(os.getcwd(), "pyproject.toml")
     if not osp.exists(config_path):
-        print()  # TODO
+        print('"pyproject.toml" NOT FOUND.')  # TODO
         return
 
     global CUBE_CONFIGS
