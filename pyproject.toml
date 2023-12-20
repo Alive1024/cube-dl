@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cube"
-version = "0.1.2"
+version = "0.2.0"
 description = ""
 authors = ["Alive1024 <2431945058@qq.com>"]
 readme = "README.md"
@@ -12,6 +12,7 @@ jsonpath-ng = "^1.5.3"
 opencv-python = "^4.8.0.76"
 torch = ">=2.0.0"
 pytorch-lightning = "^2.0.7"
+tomli = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"

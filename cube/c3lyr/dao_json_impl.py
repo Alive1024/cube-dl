@@ -67,7 +67,6 @@ class ProjectDAOJsonImpl(ProjectDAO):
                 "Proj Desc": proj.desc,
                 "Created Time": proj.created_time,
                 "Storage Path": proj.proj_dir,
-                "Logger": proj.logger,
                 "Exps": OrderedDict(),
             }
         )
@@ -90,7 +89,6 @@ class ProjectDAOJsonImpl(ProjectDAO):
         proj.desc = record["Proj Desc"]
         proj.created_time = record["Created Time"]
         proj.proj_dir = record["Storage Path"]
-        proj.logger = record["Logger"]
         return proj
 
     @staticmethod

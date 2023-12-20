@@ -80,14 +80,6 @@ class Project(_EntityBase):
     def proj_dir(self, value: str):
         self._proj_dir = value
 
-    @property
-    def logger(self):
-        return self._logger
-
-    @logger.setter
-    def logger(self, value: str | list[str]):
-        self._logger = value
-
 
 class Experiment(_EntityBase):
     ENTITY_TYPE = "exp"

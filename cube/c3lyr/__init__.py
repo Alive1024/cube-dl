@@ -3,15 +3,22 @@
 This package implements the triple layer concepts: project, experiment and run.
 """
 
+import os
 import os.path as osp
 from datetime import datetime
 
 from .dao import ExperimentDAO, ProjectDAO, RunDAO
 from .dao_json_impl import ExperimentDAOJsonImpl, ProjectDAOJsonImpl, RunDAOJsonImpl
 from .entities import Experiment, Project, Run, generate_id
-from .entity_fs_io import EntityFSIO
 
-__all__ = ["Project", "Experiment", "Run", "EntityFactory", "DAOFactory", "EntityFSIO"]
+__all__ = ["Project", "Experiment", "Run", "EntityFactory", "DAOFactory"]
+
+
+def _make_dir(target_dir, created_type: str, print_message=True):
+    if not osp.exists(target_dir):
+        os.mkdir(target_dir)
+    if print_message:
+        print(f'{created_type}: "{osp.split(target_dir)[1]}" created, storage path: {target_dir}')
 
 
 class EntityFactory:
@@ -27,12 +34,11 @@ class EntityFactory:
         entity.created_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     @staticmethod
-    def get_proj_instance(name: str, desc: str, output_dir: str, logger: str | list[str]) -> Project:
+    def get_proj_instance(name: str, desc: str, output_dir: str) -> Project:
         proj = Project()
         EntityFactory._set_common(proj, name, desc)
         proj.proj_dir = osp.abspath(osp.join(output_dir, proj.dirname))
-        proj.logger = logger
-        EntityFSIO.make_dir(proj.proj_dir, proj.ENTITY_TYPE)
+        _make_dir(proj.proj_dir, proj.ENTITY_TYPE)
         return proj
 
     @staticmethod
@@ -41,7 +47,7 @@ class EntityFactory:
         EntityFactory._set_common(exp, name, desc)
         exp.belonging_proj = DAOFactory.get_proj_dao().get_proj_from_id(output_dir, proj_id)
         exp.exp_dir = osp.abspath(osp.join(exp.belonging_proj.proj_dir, exp.dirname))
-        EntityFSIO.make_dir(exp.exp_dir, exp.ENTITY_TYPE)
+        _make_dir(exp.exp_dir, exp.ENTITY_TYPE)
         return exp
 
     @staticmethod
@@ -51,7 +57,7 @@ class EntityFactory:
         run.belonging_exp = DAOFactory.get_exp_dao().get_exp_from_id(output_dir, proj_id, exp_id)
         run.run_dir = osp.abspath(osp.join(run.belonging_exp.exp_dir, run.dirname))
         run.job_type = job_type
-        EntityFSIO.make_dir(run.run_dir, run.ENTITY_TYPE)
+        _make_dir(run.run_dir, run.ENTITY_TYPE)
         return run
 
 

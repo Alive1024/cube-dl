@@ -223,18 +223,18 @@
 在本模板中，配置文件实际上就是 `.py` 源代码文件，主要用于定义如何实例化相应的对象，编写配置文件即是一个选择(将需要使用的`import`进来)并定义如何实例化的过程。例如，下面是一个配置 root config 的代码片段：
 
 ```python
-from cube.config_sys import RootConfig, root_config_getter
+from cube.config_sys import RootConfig, cube_root_config
 from .components.task_wrappers.basic_task_wrapper import get_task_wrapper_instance
 from .components.data_wrappers.oracle_mnist import get_data_wrapper_instance
 from .components.trainers.basic_trainer import get_trainer_instance
 
 
-@root_config_getter
+@cube_root_config
 def get_root_config_instance():
   return RootConfig(
-    task_wrapper_getter=get_task_wrapper_instance,
-    data_wrapper_getter=get_data_wrapper_instance,
-    default_trainer_getter=get_trainer_instance,
+    task_module_getter=get_task_wrapper_instance,
+    data_module_getter=get_data_wrapper_instance,
+    default_runner_getter=get_trainer_instance,
   )
 ```
 
@@ -250,22 +250,22 @@ from torch import nn
 from torchmetrics.classification import MulticlassAccuracy
 
 from wrappers import BasicTaskWrapper
-from cube.config_sys import task_wrapper_getter
+from cube.config_sys import cube_task_module
 from ..models.example_cnn_oracle_mnist import get_model_instance
 
 
-@task_wrapper_getter(model_getter_func=get_model_instance)
+@cube_task_module(model_getter_func=get_model_instance)
 def get_task_wrapper_instance():
-  model = get_model_instance()
-  loss_func = nn.NLLLoss()
-  optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
-  return BasicTaskWrapper(
-    model=model,
-    loss_function=loss_func,
-    optimizer=optimizer,
-    validate_metrics=loss_func,
-    test_metrics=[loss_func, MulticlassAccuracy(num_classes=10)],
-  )
+    model = get_model_instance()
+    loss_func = nn.NLLLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    return BasicTaskWrapper(
+        model=model,
+        loss_function=loss_func,
+        optimizer=optimizer,
+        validate_metrics=loss_func,
+        test_metrics=[loss_func, MulticlassAccuracy(num_classes=10)],
+    )
 ```
 
 
