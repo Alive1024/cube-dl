@@ -6,7 +6,8 @@ from collections import OrderedDict
 from datetime import datetime
 
 from jsonpath_ng import parse
-from pytorch_lightning.utilities.rank_zero import rank_zero_only
+
+from cube.dist_utils import rank_zero_only
 
 from .dao import ExperimentDAO, ProjectDAO, RunDAO
 from .entities import Experiment, Project, Run
