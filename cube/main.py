@@ -4,7 +4,7 @@ import os
 import os.path as osp
 import sys
 from functools import partial
-from typing import Any
+from typing import Any, Literal
 
 import tomli
 from rich.columns import Columns
@@ -14,12 +14,14 @@ from rich.table import Table
 from cube.c3lyr import DAOFactory, EntityFactory
 from cube.config_sys import RootConfig
 from cube.core import CUBE_CONTEXT, CubeRunner
-from cube.types import JOB_TYPES_T
 
 # Add current working directory to PYTHONPATH  # noqa
 sys.path.insert(0, os.getcwd())
 
 CUBE_CONFIGS: dict[str, Any] | None = None
+
+
+JOB_TYPES_T = Literal["fit", "resume-fit", "validate", "test", "predict", "tune"]
 
 
 def _parse_configs(config_path: str) -> dict:

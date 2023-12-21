@@ -19,10 +19,10 @@ from cube.c3lyr import Run
 from cube.callback import CubeCallback, CubeCallbackList
 from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
 from cube.dist_utils import rank_zero_only
-from cube.types import RUNNER_TYPES_T
 
 ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"]
 RUNNER_GETTER_T = Callable[[], CubeRunner]
+RUNNER_TYPES_T = Literal["default", "fit", "validate", "test", "predict", "tune"]
 
 
 class RootConfig:
