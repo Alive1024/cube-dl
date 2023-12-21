@@ -1,15 +1,10 @@
 import ast
 import inspect
-import json
 import os
 import os.path as osp
-import re
 import shutil
-import sys
-import traceback
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
-from contextlib import contextmanager
 from functools import partial
 from typing import Literal
 
@@ -42,7 +37,6 @@ class RootConfig:
         predict_runner_getter: RUNNER_GETTER_T | None = None,
         seed_func: Callable[[int | None], None],
         global_seed: int | None = 42,
-        archive_hparams: bool = True,
         archive_config: ARCHIVED_CONFIG_FORMAT | bool = "single-py",
         callbacks: CubeCallback | Iterable[CubeCallback] | None = None,
     ):
@@ -54,17 +48,6 @@ class RootConfig:
             and (not predict_runner_getter)
         ):
             raise ValueError("The runner getters cannot be all `None`.")
-
-        # >>>>>>>>>>>>> Attributes for capturing hparams >>>>>>>>>>>>>
-        # A "flat" dict used to temporarily store the produced local variables during instantiating the task_module,
-        # data_module and runner(s). Its keys are the memory addresses of the objects, while its values are dicts
-        # containing the corresponding local variables' names and values.
-        self._init_local_vars = {}
-
-        # A "structured" (nested) dict containing the hparams needed to be logged.
-        self._hparams = OrderedDict()
-        self._cur_run_job_type = None
-        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
         # >>>>>>>>>>>>>>>>>>>>>>>> Getters >>>>>>>>>>>>>>>>>>>>>>>>
         self.model_getters = model_getters if isinstance(model_getters, Iterable) else [model_getters]
@@ -109,288 +92,36 @@ class RootConfig:
 
         seed_func(global_seed)
         self.global_seed = global_seed
-        self.archive_hparams = archive_hparams
         self.archive_config = archive_config
         self.callbacks: CubeCallbackList = CubeCallbackList(callbacks)
-
-    # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Tracking Hyper Parameters >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    @contextmanager
-    def _collect_frame_locals(
-        self, collect_type: Literal["task_module", "data_module", "runner"], enabled: bool = True
-    ):
-        """
-        A context manager to wrap some code with `sys.profile`.
-        The specific collect function is specified by the argument `collect_type`.
-        """
-        if enabled:
-            if collect_type == "task_module":
-                collect_fn = self._collect_task_module_frame_locals
-                part_key = collect_type
-            elif collect_type == "data_module":
-                collect_fn = self._collect_data_module_frame_locals
-                part_key = collect_type
-            elif collect_type == "runner":
-                collect_fn = self._collect_runner_frame_locals
-                part_key = self._cur_run_job_type + "_runner"
-            else:
-                raise ValueError(f"Unrecognized collect type: {collect_type}")
-
-            # There may be exception during the collection process, especially when instantiating objects. In this
-            # situation, the `frame.f_back` will be `None`, leading to "AttributeError: 'NoneType' object has no
-            # attribute 'f_code'"  raised in the collection function. The original error message will be blocked.
-            # Hence, try-except is used to catch any exception, and `traceback` is used to output the original
-            # traceback.
-            try:
-                sys.setprofile(collect_fn)  # pass a specific collection function as the callback
-                yield  # separate `__enter__` and `__exit__`
-                # Start parsing after collection completes
-                self._parse_frame_locals_into_hparams(part_key)
-            except BaseException as e:  # noqa
-                print(traceback.format_exc())
-                raise e
-            finally:
-                sys.setprofile(None)
-        # Do nothing if not enabled
-        else:
-            yield
-
-    def _collect_task_module_frame_locals(self, frame, event, _):
-        """A callback function for `sys.setprofile`, used to collect local variables when initializing task module."""
-        # Only caring about the function "return" events.
-        # Just before the function returns, there exist all local variables we want.
-        if event != "return":
-            return
-
-        # Use the caller's function name to filter out underlying instantiation processes.
-        # We only care about the objects instantiated in these two getter functions.
-        if frame.f_back.f_code.co_name not in (
-            self.task_module_getter.__name__,
-            self.model_getter.__name__,
-        ):
-            return
-
-        f_locals = frame.f_locals  # the local variables seen by the current stack frame, a dict
-        if "self" in f_locals:  # for normal objects, there must be "self"
-            # Put the local variables into a dict, using the address as key. Note that the local variables include
-            # both arguments of `__init__` and variables defined within `__init__`.
-            self._init_local_vars[id(f_locals["self"])] = f_locals
-
-    def _collect_data_module_frame_locals(self, frame, event, _):
-        """Similar to `_collect_task_wrapper_frame_locals`."""
-        if event != "return":
-            return
-        if frame.f_back.f_code.co_name != self.data_module_getter.__name__:
-            return
-
-        f_locals = frame.f_locals
-        if "self" in f_locals:
-            self._init_local_vars[id(f_locals["self"])] = f_locals
-
-    def _collect_runner_frame_locals(self, frame, event, _):
-        """Similar to `_collect_task_wrapper_frame_locals`."""
-        if event != "return":
-            return
-
-        # Stop if the runner has been not assigned
-        if getattr(self, f"{self._cur_run_job_type}_runner_getter") is None:
-            return
-        else:
-            # Filter condition is special for pl.Trainer, as its `__init__` is wrapped by `_defaults_from_env_vars`,
-            # which is defined in "pytorch_lightning/utilities/argparse.py".
-            # "insert_env_defaults" is the wrapped function's name of the decorator `_defaults_from_env_vars`.
-            if frame.f_back.f_code.co_name not in (
-                "insert_env_defaults",
-                getattr(self, f"{self._cur_run_job_type}_trainer_getter").__name__,
-            ):
-                return
-
-        f_locals = frame.f_locals
-        # When `insert_env_defaults` returns (happens after pl.Trainer's __init__ returns),
-        # `f_locals` contains the same `pl.Trainer` object as pl.Trainer's __init__,
-        # but the local variables are incomplete.
-        # This should be filtered out, or it will override original full pl.Trainer's arguments.
-        # Here, use the name of code object being executed in current frame (pl.Trainer's "__init__") to further filter.
-        if "self" in f_locals and frame.f_code.co_name == "__init__":
-            self._init_local_vars[id(f_locals["self"])] = f_locals
-
-    def _parse_frame_locals_into_hparams(  # noqa: C901
-        self,
-        part_key: Literal[
-            "task_module",
-            "data_module",
-            "fit_runner",
-            "validate_runner",
-            "test_runner",
-            "predict_runner",
-        ],
-    ):
-        """
-        Known limitations:
-            - Tuple, set and other Iterable variables will be converted to list.
-            - Generator: Values of generator type cannot be recorded,
-                e.g. the return value of `torch.nn.Module.parameters`.
-        """
-
-        def __parse_obj(key, value, dst: OrderedDict | list):
-            """Parsing general objects, used in `_parse_fn`."""
-            if id(value) in all_init_args:
-                new_dst = OrderedDict({"type": str(value.__class__), "args": OrderedDict()})  # class type
-                if isinstance(dst, OrderedDict):
-                    dst[key] = new_dst
-                elif isinstance(dst, list):
-                    dst.append(new_dst)
-                _parse_fn(key, all_init_args[id(value)], new_dst["args"])
-
-        def _parse_fn(  # noqa: C901
-            key,
-            value,
-            dst: OrderedDict | list,
-            exclusive_keys: Iterable = ("self",),
-        ):
-            # Get rid of specific key(s), "self" must be excluded, otherwise infinite recursion will happen.
-            if key in exclusive_keys:
-                return
-
-            # Atomic data types
-            if (value is None) or (isinstance(value, bool | int | float | complex | str)):
-                if isinstance(dst, OrderedDict):
-                    dst[key] = value
-                elif isinstance(dst, list):
-                    dst.append(value)
-
-            # Iterable data types
-            # Special for dict.
-            elif isinstance(value, dict):
-                for k, v in value.items():
-                    _parse_fn(k, v, dst)
-            # List, tuple, set and any other class's objects which has implemented the `__iter__` method
-            elif isinstance(value, Iterable):
-                # Check whether the value is "really" Iterable at first.
-                # Some class (e.g. torchmetrics 's metric classes) may override the `__iter__` method
-                # (which means it is `Iterable`), but do not really implement it,
-                # only raise a `NotImplementedError` when trying to enumerate it.
-                # And some variables are "empty" that cannot also be iterated (e.g. 0-d tensor), `TypeError`
-                # will be raised in this case.
-                really_iterable = True
-                try:
-                    for _ in value:
-                        break
-                except NotImplementedError:
-                    really_iterable = False
-                except TypeError:
-                    really_iterable = False
-
-                if really_iterable:
-                    new_dst = []  # use list to store Iterable data
-                    if isinstance(dst, OrderedDict):
-                        dst[key] = new_dst
-                    elif isinstance(dst, list):
-                        dst.append(new_dst)
-
-                    for idx, v in enumerate(value):
-                        _parse_fn(idx, v, new_dst)
-                else:
-                    __parse_obj(key, value, dst)
-
-            # Callable ? (Classes implemented __call__ also belongs to Callable)
-            # General objects
-            else:
-                __parse_obj(key, value, dst)
-
-        # Find the starting point of parsing, i.e. the object being creating
-        target_obj_locals_dict = None
-        for local_vars in self._init_local_vars.values():
-            value_type = type(local_vars["self"])
-            if (
-                (part_key == "task_module" and value_type == self.task_module.__class__)
-                or (part_key == "data_module" and value_type == self.data_module.__class__)
-                or (part_key.find("runner") != -1 and value_type == getattr(self, part_key).__class__)
-            ):
-                target_obj_locals_dict = local_vars
-                break
-
-        # Sift out the arguments of `__init__` from `self._init_local_vars`.
-        # Local variables defined within `__init__` should not be included.
-        all_init_args = {}
-        for var_id, local_vars in self._init_local_vars.items():
-            all_init_args[var_id] = {}
-            # Get the names of arguments of `__init__` through its signature
-            init_args_names = inspect.signature(local_vars["self"].__class__.__init__).parameters.keys()
-            for arg_name in init_args_names:
-                # Ignore placeholder arguments "args" and "kwargs"
-                if arg_name not in ("args", "kwargs"):
-                    all_init_args[var_id][arg_name] = local_vars[arg_name]
-
-        self._hparams[part_key] = OrderedDict(
-            {
-                "type": str(target_obj_locals_dict["self"].__class__),
-                "args": OrderedDict(),
-            }
-        )
-        # Construct the hparams dict recursively
-        _parse_fn(None, target_obj_locals_dict, self._hparams[part_key]["args"])
-
-        # Clear it as parsing completes
-        self._init_local_vars.clear()
-
-    @staticmethod
-    @rank_zero_only
-    def save_hparams(run_dir, hparams: OrderedDict, **kwargs):
-        """Save hparams to json files. "hparams.json" always indicates the latest, similar to "metrics.csv"."""
-        hparams_json_path = osp.join(run_dir, "hparams.json")
-        if osp.exists(hparams_json_path):
-            indices = []
-            for filename in os.listdir(run_dir):
-                match = re.match(r"hparams_(\d+).json", filename)
-                if match:
-                    indices.append(int(match.group(1)))
-
-            max_cnt = 1 if len(indices) == 0 else max(indices) + 1
-            shutil.move(
-                hparams_json_path,
-                osp.splitext(hparams_json_path)[0] + f"_{max_cnt}.json",
-            )
-
-        hparams.update(kwargs)
-        with open(hparams_json_path, "w", encoding="utf-8") as f:
-            json.dump(hparams, f, indent=2)
-
-    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Setting up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     def setup_task_data_modules(self):
         """Instantiate the task/data modules."""
-        with self._collect_frame_locals("task_module", enabled=self.archive_hparams):
-            self.task_module = self.task_module_getter()
-        with self._collect_frame_locals("data_module", enabled=self.archive_hparams):
-            self.data_module = self.data_module_getter()
+        self.task_module = self.task_module_getter()
+        self.data_module = self.data_module_getter()
 
     def setup_runners(self, run: Run):  # noqa: C901
         """Set up the runner(s) using the getters."""
-        self._cur_run_job_type = job_type = run.job_type
+        job_type = run.job_type
 
-        with self._collect_frame_locals("runner", enabled=self.archive_hparams):
-            if job_type == "fit":
-                if self.fit_runner_getter is None:
-                    self.fit_runner_getter = self.default_runner_getter
-                self.fit_runner = self.fit_runner_getter()
-            elif job_type == "validate":
-                if self.validate_runner_getter is None:
-                    self.validate_runner_getter = self.default_runner_getter
-                self.validate_runner = self.validate_runner_getter()
-            elif job_type == "test":
-                if self.test_runner_getter is None:
-                    self.test_runner_getter = self.default_runner_getter
-                self.test_runner = self.test_runner_getter()
-            elif job_type == "predict":
-                if self.predict_runner_getter is None:
-                    self.predict_runner_getter = self.default_runner_getter
-                self.predict_runner = self.predict_runner_getter()
+        if job_type == "fit":
+            if self.fit_runner_getter is None:
+                self.fit_runner_getter = self.default_runner_getter
+            self.fit_runner = self.fit_runner_getter()
+        elif job_type == "validate":
+            if self.validate_runner_getter is None:
+                self.validate_runner_getter = self.default_runner_getter
+            self.validate_runner = self.validate_runner_getter()
+        elif job_type == "test":
+            if self.test_runner_getter is None:
+                self.test_runner_getter = self.default_runner_getter
+            self.test_runner = self.test_runner_getter()
+        elif job_type == "predict":
+            if self.predict_runner_getter is None:
+                self.predict_runner_getter = self.default_runner_getter
+            self.predict_runner = self.predict_runner_getter()
 
-        # Save hyper-parameters
-        if self.archive_hparams:
-            self.save_hparams(run.run_dir, self._hparams, global_seed=self.global_seed)
-            self._hparams.clear()  # clear self._hparams after saved
         # Save config file(s)
         if self.archive_config:
             self._save_config(self.archive_config, run)
