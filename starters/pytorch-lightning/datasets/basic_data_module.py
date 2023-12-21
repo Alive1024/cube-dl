@@ -54,18 +54,7 @@ class BasicDataModule(LightningDataModule, CubeDataModule):
         self.test_dataloader_kwargs = test_dataloader_kwargs
         self.predict_dataloader_kwargs = predict_dataloader_kwargs
 
-    def prepare_data(self):
-        pass
-
     def setup(self, stage: str):
-        # if stage == "fit":
-        #     self.dataset_train = None
-        # elif stage == "validate":
-        #     pass
-        # elif stage == "test":
-        #     pass
-        # elif stage == "predict":
-        #     pass
         if (not self.dataset_val) and self.auto_split_train_val:
             original_train_set_len = len(self.dataset_fit)
             if isinstance(self.auto_split_train_val, float):

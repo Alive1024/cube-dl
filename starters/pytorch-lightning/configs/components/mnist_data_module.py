@@ -7,6 +7,11 @@ from datasets.basic_data_module import BasicDataModule
 
 @cube_data_module
 def get_mnist_data_module():
+    eval_dataset = MNIST(
+        root="data",
+        train=False,
+        transform=F.Compose([F.ToTensor(), F.Normalize((0.1307,), (0.3081,))]),
+    )
     return BasicDataModule(
         default_batch_size=shared_config.get("batch_size"),
         dataset_fit=MNIST(
@@ -14,10 +19,8 @@ def get_mnist_data_module():
             train=True,
             transform=F.Compose([F.ToTensor(), F.Normalize((0.1307,), (0.3081,))]),
         ),
-        dataset_val=MNIST(
-            root="data",
-            train=False,
-            transform=F.Compose([F.ToTensor(), F.Normalize((0.1307,), (0.3081,))]),
-        ),
+        dataset_val=eval_dataset,
+        dataset_test=eval_dataset,
+        dataset_predict=eval_dataset,
         dataloader_num_workers=4,
     )

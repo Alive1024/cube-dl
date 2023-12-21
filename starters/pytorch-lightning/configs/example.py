@@ -1,3 +1,5 @@
+import os.path as osp
+
 import pytorch_lightning as pl
 from cube.config_sys import (
     RootConfig,
@@ -8,10 +10,11 @@ from cube.config_sys import (
     shared_config,
 )
 from cube.core import CUBE_CONTEXT
-from pytorch_lightning.callbacks import RichProgressBar
+from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar
 from torch import nn, optim
-from torchmetrics import MetricCollection
-from torchmetrics.classification import MulticlassAccuracy
+from torchmetrics import ClasswiseWrapper, MetricCollection
+from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score
+from torchvision.datasets.mnist import MNIST
 
 from callbacks.metrics_csv import MetricsCSVCallback
 from models.cnn_example import ExampleCNN
@@ -41,13 +44,30 @@ def get_task_module():
         lr_scheduler=optim.lr_scheduler.CosineAnnealingLR(
             optimizer=optimizer, T_max=shared_config.get("max_epochs"), eta_min=1e-7
         ),
-        validate_metrics=MetricCollection(
+        validate_metrics={
+            "val_loss": nn.CrossEntropyLoss(),
+            "val_acc": MetricCollection(
+                {
+                    "mean_acc": MulticlassAccuracy(num_classes=num_classes),
+                    "classwise_acc": ClasswiseWrapper(
+                        MulticlassAccuracy(num_classes=num_classes, average=None),
+                        labels=MNIST.classes,
+                        prefix="cw_acc_",
+                    ),
+                },
+                prefix="val_",
+            ),
+        },
+        test_metrics=MetricCollection(
             {
-                # "val_loss": nn.CrossEntropyLoss(),
-                "val_acc": MulticlassAccuracy(num_classes=num_classes)
-            }
+                "mean_acc": MulticlassAccuracy(num_classes=num_classes),
+                "classwise_acc": ClasswiseWrapper(
+                    MulticlassAccuracy(num_classes=num_classes, average=None), labels=MNIST.classes, prefix="cw_acc_"
+                ),
+                "f1": MulticlassF1Score(num_classes=num_classes),
+            },
+            prefix="test_",
         ),
-        test_metrics={"test_acc": MulticlassAccuracy(num_classes)},
     )
 
 
@@ -57,6 +77,28 @@ def get_fit_runner():
     return pl.Trainer(
         accelerator="auto",
         max_epochs=shared_config.get("max_epochs"),
+        callbacks=[
+            RichProgressBar(),
+            ModelCheckpoint(
+                dirpath=osp.join(run.run_dir, "checkpoints"),
+                filename="{epoch}-{step}-{val_mean_acc:.4f}",
+                save_top_k=1,
+                monitor="val_mean_acc",
+                mode="max",
+                save_last=True,
+            ),
+        ],
+        logger=get_csv_logger(run),
+    )
+
+
+@cube_runner
+def get_test_runner():
+    run = CUBE_CONTEXT["run"]
+    return pl.Trainer(
+        accelerator="auto",
+        devices=1,
+        num_nodes=1,
         callbacks=[RichProgressBar()],
         logger=get_csv_logger(run),
     )
@@ -73,6 +115,7 @@ def get_root_config():
         task_module_getter=get_task_module,
         data_module_getter=get_mnist_data_module,
         fit_runner_getter=get_fit_runner,
+        test_runner_getter=get_test_runner,
         seed_func=pl.seed_everything,
         global_seed=42,
         callbacks=MetricsCSVCallback(),
