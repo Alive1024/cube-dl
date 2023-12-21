@@ -476,7 +476,10 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
 def main():
     config_path = osp.join(os.getcwd(), "pyproject.toml")
     if not osp.exists(config_path):
-        print('"pyproject.toml" NOT FOUND.')  # TODO
+        print(
+            'It seems like the current working directory is not a cube project (which contains a "pyproject.toml"). '
+            "Please start from a starter."
+        )
         return
 
     global CUBE_CONFIGS

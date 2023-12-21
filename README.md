@@ -296,8 +296,6 @@ def get_task_wrapper_instance():
                                └────────────────────────────────┘
 ```
 
-
-
 对于配置文件的一些强制性规则：
 
 - 为了更好的可读性，在配置文件中初始化 `RootConfig` 时必须使用关键字参数 (模板中给出的 `BasicTaskWrapper`和`BasicDataWrapper`亦是如此，推荐在对 task/data wrapper 进行扩展时也遵循此规则，强制使用关键字参数)；
@@ -306,63 +304,6 @@ def get_task_wrapper_instance():
 - Task wrapper 的 getter 函数必须使用 `config_decorator.py` 中的 `task_wrapper_getter` 装饰器装饰，并向该装饰器传入 `model_getter_func` 参数，就如同上文的  task wrapper 示例中的写法。对于其他配置项，虽然目前不使用相应的装饰器也是没错的，但考虑到将来可能的扩展，强烈建议在编写 getter 函数时都使用`config_decorator.py` 中的相应的装饰器进行装饰。
 
 另外，建议在配置文件中使用相对 import 导入 config components。
-
-
-
-### 2.2.2 配置参数的自动记录
-
-通过 root config 配置的所有参数都将会被自动记录，以供追溯和比较。在相应的 run 的目录中会生成名为 `hparams.json` 的文件，形如：
-
-```json
-{
-  "task_wrapper": {
-    "type": "<class 'wrappers.basic_task_wrapper.BasicTaskWrapper'>",
-    "args": {
-      "model": {
-        "type": "<class 'models.example_cnn.ExampleCNN'>",
-        "args": {
-          "num_input_channels": 1,
-          "num_classes": 10
-        }
-      }
-    }
-    ......
-  },
-  "data_wrapper": {
-    "type": "<class 'wrappers.basic_data_wrapper.BasicDataWrapper'>",
-    "args": {
-      "default_batch_size": 64,
-      "fit_batch_size": null,
-      "val_batch_size": null,
-      "test_batch_size": null,
-      "predict_batch_size": null
-    }
-    ......
-  },
-  "fit_trainer": {
-    "type": "<class 'pytorch_lightning.trainer.trainer.Trainer'>",
-    "args": {
-      "logger": [],
-      "enable_checkpointing": true,
-      "callbacks": [
-        {
-          "type": "<class 'pytorch_lightning.callbacks.progress.rich_progress.RichProgressBar'>",
-          "args": {
-            "refresh_rate": 1,
-            "leave": true,
-            "console_kwargs": null
-          }
-        }
-      ]
-      ......
-    }
-  },
-  "global_seed": 42
-}
-```
-
-此文件将会详细地记录所有参数，主体由三大部分组成，分别与 task wrapper、data wrapper 和 trainer 一一对应。使用到的每个类的都对应一个 dict，含有 `type` 和 `args`，分别是使用的类的类型及传入的初始化参数 (包括默认值)。有了这样的文件，可以对导致某种结果的所有参数进行全面的观察。
-
 
 
 ### 2.2.3 配置文件的自动归档
@@ -432,26 +373,24 @@ DL-Project-Template	【项目根目录】
 
 
 
-## 2.4 main.py 的命令与参数
+## 2.4 基本命令与参数
 
-`main.py`是所有操作的入口点，包含多个子命令，其作用及参数如下：
 
 ### `init`
 
 初始化一个新的 proj 和 exp。
 
-| 参数名                               |    类型    | 是否必需 | 含义                                                     |
-|-----------------------------------|:--------:|:----:|--------------------------------------------------------|
-| **-pn**, --proj-name, --proj_name |   str    |  ✔️  | 新建 proj 的名称                                            |
-| **-pd**, --proj-desc, --proj_desc |   str    |  ✔️  | 新建 proj 的描述                                            |
-| **-en**, --exp-name, --exp_name   |   str    |  ✔️  | 新建 exp 的名称                                             |
-| **-ed**, --exp-desc, --exp_desc   |   str    |  ✔️  | 新建 exp 的描述                                             |
-| **-l**, --logger                  | str，(多个) |  ❌   | 在此 proj 中使用的日志记录器。默认为 CSV，等同于传入 True，指定为 False 可以完全关闭。 |
+| 参数名                            | 类型 | 是否必需 | 含义             |
+| --------------------------------- | :--: | :------: | ---------------- |
+| **-pn**, --proj-name, --proj_name | str  |    ✔️     | 新建 proj 的名称 |
+| **-pd**, --proj-desc, --proj_desc | str  |    ✔️     | 新建 proj 的描述 |
+| **-en**, --exp-name, --exp_name   | str  |    ✔️     | 新建 exp 的名称  |
+| **-ed**, --exp-desc, --exp_desc   | str  |    ✔️     | 新建 exp 的描述  |
 
 示例：
 
 ```shell
-python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Baseline" -ed "Baseline exps."
+cube init -pn "MyFirstProject" -pd "This is my first project." -en "Baseline" -ed "Baseline exps."
 ```
 
 
@@ -460,16 +399,16 @@ python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Ba
 
 向某个 proj 添加一个新的 exp。
 
-| 参数名                          | 类型 | 是否必需 | 含义                       |
-| ------------------------------- | :--: | :------: | -------------------------- |
-| **-p**, --proj-id, --proj_id    | str  |    ✔️     | 新建 exp 所属的 proj 的 ID |
-| **-en**, --exp-name, --exp_name | str  |    ✔️     | 新建 exp 的名称            |
-| **-ed**, --exp-desc, --exp_desc | str  |    ✔️     | 新建 exp 的描述            |
+| 参数名                       | 类型 | 是否必需 | 含义                       |
+| ---------------------------- | :--: | :------: | -------------------------- |
+| **-p**, --proj-id, --proj_id | str  |    ✔️     | 新建 exp 所属的 proj 的 ID |
+| **-n**, --name               | str  |    ✔️     | 新建 exp 的名称            |
+| **-d**, --desc               | str  |    ✔️     | 新建 exp 的描述            |
 
 示例：
 
 ```shell
-python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
+cube add-exp -p 3xp4svcs -n "Ablation" -d "Ablation exps."
 ```
 
 
@@ -491,7 +430,7 @@ python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
 示例：
 
 ```shell
-python main.py ls -r p2em5umz 43vfatjk
+cube ls -r p2em5umz 43vfatjk
 ```
 
 
@@ -500,14 +439,13 @@ python main.py ls -r p2em5umz 43vfatjk
 
 `fit`, `validate`, `test`, `predict` 四个子命令都具有下列参数：
 
-| 参数名                                  |      类型      | 是否必需 | 含义                   |
-|--------------------------------------|:------------:|:----:|----------------------|
-| **-c**, --config-file, --config_file |     str      |  ✔️  | 配置文件的路径              |
-| **-p**, --proj-id, --proj_id         |     str      |  ✔️  | 新建 run 所属的 proj 的 ID |
-| **-e**, --exp-id, --exp_id           |     str      |  ✔️  | 新建 run 所属的 exp 的 ID  |
-| **-n**, --name                       |     str      |  ✔️  | 新建 run 的名称           |
-| **-d**, --desc                       |     str      |  ✔️  | 新建 run 的描述           |
-| **-o**, --off-log                    | "store_true" |  ❌   | 临时关闭所有 logging       |
+| 参数名                               | 类型 | 是否必需 | 含义                       |
+| ------------------------------------ | :--: | :------: | -------------------------- |
+| **-c**, --config-file, --config_file | str  |    ✔️     | 配置文件的路径             |
+| **-p**, --proj-id, --proj_id         | str  |    ✔️     | 新建 run 所属的 proj 的 ID |
+| **-e**, --exp-id, --exp_id           | str  |    ✔️     | 新建 run 所属的 exp 的 ID  |
+| **-n**, --name                       | str  |    ✔️     | 新建 run 的名称            |
+| **-d**, --desc                       | str  |    ✔️     | 新建 run 的描述            |
 
 ### `validate`, `test`, `predict` 共有的参数
 
@@ -526,7 +464,7 @@ python main.py ls -r p2em5umz 43vfatjk
 示例：
 
 ```shell
-python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "SimpleCNN" -d "Use a 3-layer simple CNN as baseline."
+cube fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "SimpleCNN" -d "Use a 3-layer simple CNN as baseline."
 ```
 
 
@@ -535,16 +473,15 @@ python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n 
 
 从某个中断的训练中恢复。
 
-| 参数名                               |     类型     | 是否必需 | 含义                                                         |
-| ------------------------------------ | :----------: | :------: | ------------------------------------------------------------ |
-| **-c**, --config-file, --config_file |     str      |    ✔️     | 配置文件的路径                                               |
-| **-r**, --resume-from, --resume_from |     str      |    ✔️     | 要恢复的中断的 fit 的模型 checkpoint 的路径，路径中需要包含 proj、exp 和 run 所在的目录名 (推断 ID 需要这些信息) |
-| **-o**, --off-log                    | "store_true" |    ❌     | 临时关闭所有 logging                                         |
+| 参数名                               | 类型 | 是否必需 | 含义                                                         |
+| ------------------------------------ | :--: | :------: | ------------------------------------------------------------ |
+| **-c**, --config-file, --config_file | str  |    ✔️     | 配置文件的路径                                               |
+| **-r**, --resume-from, --resume_from | str  |    ✔️     | 要恢复的中断的 fit 的模型 checkpoint 的路径，路径中需要包含 proj、exp 和 run 所在的目录名 (推断 ID 需要这些信息) |
 
 示例：
 
 ```shell
-python main.py resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch\=3-step\=1532.ckpt"
+cube resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch\=3-step\=1532.ckpt"
 ```
 
 
@@ -556,7 +493,7 @@ python main.py resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp
 示例：
 
 ```shell
-python main.py validate -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Val" -d "Validate the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
+cube validate -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Val" -d "Validate the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
 ```
 
 
@@ -568,7 +505,7 @@ python main.py validate -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xh
 示例：
 
 ```shell
-python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Test" -d "Test the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
+cube test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Test" -d "Test the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
 ```
 
 
@@ -587,8 +524,6 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 ### 其他配置项
 
-在 `main.py` 的开头，有一些通常不需要修改的配置项，因此并没有放在子命令的参数中：
-
 - `OUTPUT_DIR`：输出目录的路径，默认为整个项目根目录下的 `outputs`；
 - `ARCHIVED_CONFIGS_FORMAT`：配置文件归档的格式，可选值为：
   - "SIMPLE_PY": 将所有配置文件合并为单个 .py 文件；
@@ -597,76 +532,9 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 
 
 
-
 # 3. 工作流
 
-## 3.1 准备模板
-
-可以通过以下方式使用此项目模板：
-
-1. 直接将此模板克隆到本地：`git clone https://github.com/Alive1024/DL-Project-Template.git`；
-2. 此模板已经在 Github 上设置为了 "Template repository "，可以在仓库主页直接通过 "Use this template" 进行使用；
-3. Fork 此模板仓库。
-
-
-
-## 3.2 同步模板的更新
-
-此项目模板可能会发生后续更新。当使用上面所述的第 2 种方式时，可以通过 Github Actions 来实现自动更新 (目前 Github 官方并没有提供下游 Repos 与 Template Repo 同步的功能)。这里使用了 [actions-template-sync](https://github.com/marketplace/actions/actions-template-sync)，如果想及时接受更新，请按以下步骤操作：
-
-在整个项目根目录下新建 `.github/workflows` 目录，然后添加名为 `template-sync.yml` 的文件，写入以下内容：
-
-```yaml
-name: actions-template-sync
-
-on:
-  # Enable cronjob trigger
-  schedule:
-  - cron:  "0 0 * * 1"
-
-  # Enable manual trigger
-  workflow_dispatch:
-
-jobs:
-  repo-sync:
-    runs-on: ubuntu-latest
-
-    steps:
-      # To use this repository's private action, you must check out the repository
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: actions-template-sync
-        uses: AndreasAugustin/actions-template-sync@v0.8.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          source_repo_path: Alive1024/Cube
-          upstream_branch: main
-          pr_labels: template-sync
-```
-
-以上 action 通过 [cron](https://en.wikipedia.org/wiki/Cron) 指定了每周一的 00:00 进行一次同步，如果此模板仓库发生了更改，那么您的仓库将收到一个 PR。如果想要自定义执行同步的频率，可以借助 [crontab guru](https://crontab.guru/) 工具快速生成 cron schedule expressions，然后修改上面的 `cron:` 的内容。此外，由于添加了 ` workflow_dispatch`，也可以在仓库的 "Github Actions" 选项卡中手动执行此 action。
-
-同时，可以为此 action 设置其他的参数，例如 PR 的标题、PR 的标签等，详见 [Configuration parameters](https://github.com/marketplace/actions/actions-template-sync#configuration-parameters)。
-
-
-
 ## 3.3 准备依赖
-
-此模板的必要依赖项包括：
-
-```text
-numpy>=1.24.1
-opencv_python_headless>=4.6.0.66
-torch>=1.13.1
-torchvision>=0.14.1
-pytorch_lightning>=1.9.0
-rich>=13.3.1
-jsonpath_ng>=1.5.3
-torchmetrics>=0.11.1
-```
-
-
 
 可以通过以下命令直接安装：
 
@@ -695,23 +563,10 @@ pip install -r requirements.txt
 对于数据集类，可以直接将现有的数据集类的定义移植到 `datasets` 中。
 
 
-
-### Task Wrapper
-
-模板中提供的 `BasicTaskWrapper` 只是一个常规的 task wrapper 示例，当不能满足特殊需求时，需要自定义新的 task wrapper，步骤如下：
-
-1. 在 `wrappers` 中新建一个源代码文件  (建议命名为 `xxx_task_wrapper.py`)，在其中一个类 (建议命名为 `XXXTaskWrapper`)，使其继承 `TaskWrapperBase`，然后按照编写 PyTorch-Lightning 的 `LightningModule` 的规则按照实际需要编写代码，并实现父类 `BasicTaskWrapper` 的抽象方法；
-
-2. 在 `wrappers/__init__.py` 中 `import` 新建的 task wrapper （实际上不进行此步骤也是可以的，只是在配置文件中 `import` 时需要将路径写全，而无法直接 `from wrappers import XXX`）
+### Task Module
 
 
-
-### Data Wrapper
-
-类似于  `BasicTaskWrapper`, `BasicDataWrapper` 也是一个常规的 data wrapper 示例，自定义新的 data wrapper 的步骤如下：
-
-1. 在 `wrappers` 中新建一个源代码文件  (建议命名为 `xxx_data_wrapper.py`)，在其中一个类 (建议命名为 `XXXDataWrapper`)，使其继承 `pytorch_lightning.LightningDataModule`，然后按照编写 PyTorch-Lightning 的 `LightningDataModule` 的规则按照实际需要编写代码；
-2. 在 `wrappers/__init__.py` 中 `import` 新建的 data wrapper （实际上不进行此步骤也是可以的，只是在配置文件中 `import` 时需要将路径写全，而无法直接 `from wrappers import XXX`）
+### Data Module
 
 
 
@@ -730,7 +585,7 @@ pip install -r requirements.txt
 **初始化**：
 
 ```shell
-python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Baseline" -ed "Baseline exps."
+cube init -pn "MyFirstProject" -pd "This is my first project." -en "Baseline" -ed "Baseline exps."
 ```
 
 
@@ -738,7 +593,7 @@ python main.py init -pn "MyFirstProject" -pd "This is my first project." -en "Ba
 **（可选项）添加新的 exp**:
 
 ```shell
-python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
+cube add-exp -p 3xp4svcs -n "Ablation" -d "Ablation exps."
 ```
 
 
@@ -746,7 +601,7 @@ python main.py add-exp -p 3xp4svcs -en "Ablation" -ed "Ablation exps."
 **显示所有的 proj 和 exp**：
 
 ```shell
-python main.py ls -pe
+cube ls
 ```
 
 
@@ -754,7 +609,7 @@ python main.py ls -pe
 **进行训练 （proj ID 和 exp ID 可以直接从 `ls` 命令的输出结果复制）**：
 
 ```shell
-python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "SimpleCNN" -d "Use a 3-layer simple CNN as baseline."
+cube fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "SimpleCNN" -d "Use a 3-layer simple CNN as baseline."
 ```
 
 
@@ -762,7 +617,7 @@ python main.py fit -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n 
 **继续中断的训练**：
 
 ```shell
-python main.py resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch\=3-step\=1532.ckpt"
+cube resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch\=3-step\=1532.ckpt"
 ```
 
 
@@ -770,7 +625,7 @@ python main.py resume-fit -c configs/exp_on_oracle_mnist.py -r "outputs/proj_3xp
 **进行测试**：
 
 ```shell
-python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Test" -d "Test the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
+cube test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n "Test" -d "Test the simple CNN." -lc "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/checkpoints/epoch=4-step=1915.ckpt"
 ```
 
 
@@ -786,21 +641,5 @@ python main.py test -c configs/exp_on_oracle_mnist.py -p 3xp4svcs -e voxc2xhj -n
 **复现某次 run** (通过向子命令的 `-c` 参数传入一个 archived config 的路径)：
 
 ```shell
-python main.py fit -c "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/archived_config_run_rw4q66gx.py" -p 3xp4svcs -e voxc2xhj -n "ReproduceSimpleCNN" -d "Reproduce the 3-layer simple CNN baseline."
+cube fit -c "outputs/proj_3xp4svcs_MyFirstProject/exp_voxc2xhj_Baseline/run_rw4q66gx_SimpleCNN/archived_config_run_rw4q66gx.py" -p 3xp4svcs -e voxc2xhj -n "ReproduceSimpleCNN" -d "Reproduce the 3-layer simple CNN baseline."
 ```
-
-
-
-
-
-# 附录
-
-下面将对一些技术细节进行说明，以便于对源码感兴趣的用户阅读源代码。
-
-## 配置系统中的参数收集
-
-To be supplemented
-
-## c3lyr
-
-To be supplemented

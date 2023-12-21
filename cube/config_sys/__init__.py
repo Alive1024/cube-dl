@@ -10,7 +10,6 @@ from .config_decorators import (
 )
 from .root_config import RootConfig
 from .shared_config import shared_config
-from .utils import LazyInstance, iterable_to_generator
 
 __all__ = [
     "RootConfig",
@@ -19,7 +18,5 @@ __all__ = [
     "cube_data_module",
     "cube_runner",
     "cube_root_config",
-    "iterable_to_generator",
-    "LazyInstance",
     "shared_config",
 ]
