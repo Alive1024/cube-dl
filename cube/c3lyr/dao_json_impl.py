@@ -41,7 +41,7 @@ def _get_record_file_path_from_proj_id(proj_id: str, output_dir: str):
     for name in os.listdir(output_dir):
         if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
             record_file_path = osp.join(output_dir, name, name + ".json")
-    if not osp.exists(record_file_path):
+    if record_file_path is None:
         raise FileNotFoundError(f"There is no record file with id {proj_id} in {output_dir}.")
     return record_file_path
 
