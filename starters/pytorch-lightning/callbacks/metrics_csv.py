@@ -1,3 +1,4 @@
+import csv
 import os
 import os.path as osp
 import re
@@ -53,13 +54,21 @@ class MetricsCSVCallback(CubeCallback):
             if filename.startswith("metrics_") and filename.endswith(".csv")
         ]
         metrics_csv_files.sort(key=lambda x: int(osp.splitext(x)[0].split("_")[1]))
+
         # Append the latest one to the last.
         if osp.exists(osp.join(run_dir, "metrics.csv")):
             metrics_csv_files.append("metrics.csv")
+
+        # Merge
         if len(metrics_csv_files) > 1:
+            # Get the field names from the 1st csv
+            with open(osp.join(run_dir, metrics_csv_files[0])) as metrics_csv:
+                reader = csv.DictReader(metrics_csv)
+                fieldnames = list(next(reader).keys())
+
             with open(osp.join(run_dir, "merged_metrics.csv"), "w") as merged_metrics_csv:
-                for csv_idx, csv_filename in enumerate(metrics_csv_files):
-                    with open(osp.join(run_dir, csv_filename)) as metrics_csv:
-                        if csv_idx != 0:
-                            next(metrics_csv)  # skip the csv header to avoid repetition
-                        merged_metrics_csv.write(metrics_csv.read())
+                writer = csv.DictWriter(merged_metrics_csv, fieldnames=fieldnames)
+                for csv_fn in metrics_csv_files:
+                    with open(osp.join(run_dir, csv_fn)) as metrics_csv:
+                        reader = csv.DictReader(metrics_csv)
+                        writer.writerows(reader)
