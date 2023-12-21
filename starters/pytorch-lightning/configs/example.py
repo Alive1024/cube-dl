@@ -75,6 +75,5 @@ def get_root_config():
         fit_runner_getter=get_fit_runner,
         seed_func=pl.seed_everything,
         global_seed=42,
-        archive_hparams=False,
         callbacks=MetricsCSVCallback(),
     )

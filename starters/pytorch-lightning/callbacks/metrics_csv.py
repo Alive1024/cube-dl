@@ -17,7 +17,7 @@ class MetricsCSVCallback(CubeCallback):
         Since `pytorch_lightning.loggers.CSVLogger` will override previous "metrics.csv",
         special process is needed when resuming fit to avoid "metrics.csv" being overridden.
         """
-        if os.environ.get("CUBE_RUN_IS_RESUMING") == "True":
+        if CUBE_CONTEXT["run"].is_resuming:
             run_dir = CUBE_CONTEXT["run"].run_dir
             metrics_csv_path = osp.join(run_dir, "metrics.csv")
             if osp.exists(metrics_csv_path):
