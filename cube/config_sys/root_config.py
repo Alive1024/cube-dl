@@ -1,4 +1,5 @@
 import ast
+import importlib
 import inspect
 import os
 import os.path as osp
@@ -18,6 +19,30 @@ from cube.dist_utils import rank_zero_only
 ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"]
 RUNNER_GETTER_T = Callable[[], CubeRunner]
 RUNNER_TYPES_T = Literal["default", "fit", "validate", "test", "predict", "tune"]
+
+
+def get_root_config_instance(config_file_path, return_getter=False):
+    # Remove the part of root directory in an absolute path.
+    relative_file_path = config_file_path.replace(osp.split(__file__)[0], "")
+    import_path = relative_file_path.replace("\\", ".").replace("/", ".")
+
+    # Remove the opening '.', or importlib will seem it as a relative import and the `package` argument is needed.
+    if import_path.startswith("."):
+        import_path = import_path[1:]
+    if import_path.endswith(".py"):
+        import_path = import_path[:-3]
+
+    try:
+        root_config_getter = getattr(importlib.import_module(import_path), RootConfig.ROOT_CONFIG_GETTER_NAME)
+        root_config: RootConfig = root_config_getter()
+        # Attach the `root_config_getter` to the `root_config` instance
+        setattr(root_config, "root_config_getter", root_config_getter)
+    except AttributeError:
+        raise AttributeError(
+            f"Expect a function called `{RootConfig.ROOT_CONFIG_GETTER_NAME}` as the root config getter "
+            f"in the config file, like `def {RootConfig.ROOT_CONFIG_GETTER_NAME}(): ...`"
+        )
+    return (root_config, root_config_getter) if return_getter else root_config
 
 
 class RootConfig:
@@ -108,18 +133,26 @@ class RootConfig:
         if job_type == "fit":
             if self.fit_runner_getter is None:
                 self.fit_runner_getter = self.default_runner_getter
+            if self.fit_runner_getter is None:
+                raise ValueError(f"There is no runner for {job_type}, please specify it in the root config.")
             self.fit_runner = self.fit_runner_getter()
         elif job_type == "validate":
             if self.validate_runner_getter is None:
                 self.validate_runner_getter = self.default_runner_getter
+            if self.validate_runner_getter is None:
+                raise ValueError(f"There is no runner for {job_type}, please specify it in the root config.")
             self.validate_runner = self.validate_runner_getter()
         elif job_type == "test":
             if self.test_runner_getter is None:
                 self.test_runner_getter = self.default_runner_getter
+            if self.test_runner_getter is None:
+                raise ValueError(f"There is no runner for {job_type}, please specify it in the root config.")
             self.test_runner = self.test_runner_getter()
         elif job_type == "predict":
             if self.predict_runner_getter is None:
                 self.predict_runner_getter = self.default_runner_getter
+            if self.predict_runner_getter is None:
+                raise ValueError(f"There is no runner for {job_type}, please specify it in the root config.")
             self.predict_runner = self.predict_runner_getter()
 
         # Save config file(s)

@@ -1,5 +1,4 @@
 import argparse
-import importlib
 import os
 import os.path as osp
 import sys
@@ -12,8 +11,8 @@ from rich.console import Console
 from rich.table import Table
 
 from cube.c3lyr import DAOFactory, EntityFactory
-from cube.config_sys import RootConfig
-from cube.core import CUBE_CONTEXT, CubeRunner
+from cube.config_sys import get_root_config_instance
+from cube.core import CUBE_CONTEXT
 
 # Add current working directory to PYTHONPATH  # noqa
 sys.path.insert(0, os.getcwd())
@@ -29,35 +28,6 @@ def _parse_configs(config_path: str) -> dict:
     with open(config_path, "rb") as f:
         configs = tomli.load(f)
     return configs["tool"]["cube"]
-
-
-def _check_runner(runner: CubeRunner, job_type: JOB_TYPES_T):
-    if not runner:
-        raise ValueError(f"There is no runner for {job_type}, please specify it in the root config.")
-
-
-def _get_root_config_instance(config_file_path, return_getter=False):
-    # Remove the part of root directory in an absolute path.
-    relative_file_path = config_file_path.replace(osp.split(__file__)[0], "")
-    import_path = relative_file_path.replace("\\", ".").replace("/", ".")
-
-    # Remove the opening '.', or importlib will seem it as a relative import and the `package` argument is needed.
-    if import_path.startswith("."):
-        import_path = import_path[1:]
-    if import_path.endswith(".py"):
-        import_path = import_path[:-3]
-
-    try:
-        root_config_getter = getattr(importlib.import_module(import_path), RootConfig.ROOT_CONFIG_GETTER_NAME)
-        root_config: RootConfig = root_config_getter()
-        # Attach the `root_config_getter` to the `root_config` instance
-        setattr(root_config, "root_config_getter", root_config_getter)
-    except AttributeError:
-        raise AttributeError(
-            f"Expect a function called `{RootConfig.ROOT_CONFIG_GETTER_NAME}` as the root config getter "
-            f"in the config file, like `def {RootConfig.ROOT_CONFIG_GETTER_NAME}(): ...`"
-        )
-    return (root_config, root_config_getter) if return_getter else root_config
 
 
 def _parse_args():
@@ -399,7 +369,7 @@ def ls(args: argparse.Namespace):
 
 
 def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
-    root_config, root_config_getter = _get_root_config_instance(args.config_file, return_getter=True)
+    root_config, root_config_getter = get_root_config_instance(args.config_file, return_getter=True)
 
     run_dao = DAOFactory.get_run_dao()
     # When resuming fit, the run should resume from the original.
@@ -430,14 +400,12 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
 
     root_config.callbacks.on_run_start()
     if job_type == "fit":
-        _check_runner(root_config.fit_runner, job_type)
         root_config.fit_runner.fit(
             model=root_config.task_module,
             datamodule=root_config.data_module,
         )
 
     elif job_type == "resume-fit":
-        _check_runner(root_config.fit_runner, job_type)
         root_config.fit_runner.fit(
             root_config.task_module,
             root_config.data_module,
@@ -445,7 +413,6 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
         )
 
     elif job_type in ("validate", "test", "predict"):
-        _check_runner(root_config.validate_runner, job_type)
         if args.loaded_ckpt is not None:
             # Load the specified checkpoint
             loaded_task_module = root_config.task_module.load_checkpoint(args.loaded_ckpt)

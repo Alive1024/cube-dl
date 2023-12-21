@@ -8,10 +8,11 @@ from .config_decorators import (
     cube_runner,
     cube_task_module,
 )
-from .root_config import RootConfig
+from .root_config import RootConfig, get_root_config_instance
 from .shared_config import shared_config
 
 __all__ = [
+    "get_root_config_instance",
     "RootConfig",
     "cube_model",
     "cube_task_module",
