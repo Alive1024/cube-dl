@@ -6,7 +6,7 @@ import shutil
 
 from cube.callback import CubeCallback
 from cube.core import CUBE_CONTEXT
-from cube.dist_utils import rank_zero_only
+from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 
 class MetricsCSVCallback(CubeCallback):

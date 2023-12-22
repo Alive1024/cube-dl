@@ -14,7 +14,6 @@ from torch.nn import Module
 from cube.c3lyr import Run
 from cube.callback import CubeCallback, CubeCallbackList
 from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
-from cube.dist_utils import rank_zero_only
 
 ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"]
 RUNNER_GETTER_T = Callable[[], CubeRunner]
@@ -384,7 +383,6 @@ class RootConfig:
 
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    @rank_zero_only
     def _save_config(self, config_format: ARCHIVED_CONFIG_FORMAT, run: Run):
         # Archive config file(s)
         root_config_getter = getattr(self, "root_config_getter")

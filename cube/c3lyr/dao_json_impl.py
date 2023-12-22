@@ -7,8 +7,6 @@ from datetime import datetime
 
 from jsonpath_ng import parse
 
-from cube.dist_utils import rank_zero_only
-
 from .dao import ExperimentDAO, ProjectDAO, RunDAO
 from .entities import Experiment, Project, Run
 
@@ -20,7 +18,6 @@ def _json_read_from_path(json_path) -> dict:
     return record
 
 
-@rank_zero_only
 def _json_dump_to_file(obj, json_path):
     with open(json_path, "w") as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)

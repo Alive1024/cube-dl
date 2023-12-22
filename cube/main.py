@@ -5,29 +5,20 @@ import sys
 from functools import partial
 from typing import Any, Literal
 
-import tomli
 from rich.columns import Columns
 from rich.console import Console
 from rich.table import Table
 
-from cube.c3lyr import DAOFactory, EntityFactory
+from cube.c3lyr import DAOFactory, EntityFactory, dump_run, remove_cur_run, try_to_load_run
 from cube.config_sys import get_root_config_instance
 from cube.core import CUBE_CONTEXT
+from cube.utils import parse_cube_configs
 
 # Add current working directory to PYTHONPATH  # noqa
 sys.path.insert(0, os.getcwd())
 
 CUBE_CONFIGS: dict[str, Any] | None = None
-
-
 JOB_TYPES_T = Literal["fit", "resume-fit", "validate", "test", "predict", "tune"]
-
-
-def _parse_configs(config_path: str) -> dict:
-    """Parse configurations from configuration file (pyproject.toml)."""
-    with open(config_path, "rb") as f:
-        configs = tomli.load(f)
-    return configs["tool"]["cube"]
 
 
 def _parse_args():
@@ -369,27 +360,35 @@ def ls(args: argparse.Namespace):
 
 
 def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
-    root_config, root_config_getter = get_root_config_instance(args.config_file, return_getter=True)
+    root_config = get_root_config_instance(args.config_file)
+    output_dir = CUBE_CONFIGS["output_dir"]
 
-    run_dao = DAOFactory.get_run_dao()
-    # When resuming fit, the run should resume from the original.
-    if job_type == "resume-fit":
-        proj_id, exp_id, run_id = run_dao.parse_ids_from_ckpt_path(args.resume_from)
-        run = run_dao.get_run_from_id(CUBE_CONFIGS["output_dir"], proj_id=proj_id, exp_id=exp_id, run_id=run_id)
-        run.is_resuming = True
+    loaded_run = try_to_load_run(output_dir)
+    if loaded_run is None:
+        run_dao = DAOFactory.get_run_dao()
+        # When resuming fit, the run should resume from the original.
+        if job_type == "resume-fit":
+            proj_id, exp_id, run_id = run_dao.parse_ids_from_ckpt_path(args.resume_from)
+            run = run_dao.get_run_from_id(output_dir, proj_id=proj_id, exp_id=exp_id, run_id=run_id)
+            run.is_resuming = True
 
-    # For any other run, a new one should be created.
+        # For any other run, a new one should be created.
+        else:
+            run = EntityFactory.get_run_instance(
+                name=args.name,
+                desc=args.desc,
+                output_dir=output_dir,
+                proj_id=args.proj_id,
+                exp_id=args.exp_id,
+                job_type=job_type,
+            )
+            run_dao.insert_entry(run)
+            run.is_resuming = False
+
+        dump_run(run, output_dir)
+
     else:
-        run = EntityFactory.get_run_instance(
-            name=args.name,
-            desc=args.desc,
-            output_dir=CUBE_CONFIGS["output_dir"],
-            proj_id=args.proj_id,
-            exp_id=args.exp_id,
-            job_type=job_type,
-        )
-        run_dao.insert_entry(run)
-        run.is_resuming = False
+        run = loaded_run
 
     CUBE_CONTEXT["run"] = run
 
@@ -434,6 +433,7 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
                 root_config.task_module,
                 root_config.data_module,
             )
+    
     else:
         raise ValueError(f"Unrecognized job type: {job_type}!")
 
@@ -441,22 +441,20 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
 
 
 def main():
-    config_path = osp.join(os.getcwd(), "pyproject.toml")
-    if not osp.exists(config_path):
-        print(
-            'It seems like the current working directory is not a cube project (which contains a "pyproject.toml"). '
-            "Please start from a starter."
-        )
-        return
+    try:
+        global CUBE_CONFIGS
+        CUBE_CONFIGS = parse_cube_configs()
+        output_dir = CUBE_CONFIGS["output_dir"]
 
-    global CUBE_CONFIGS
-    CUBE_CONFIGS = _parse_configs(config_path)
+        if not osp.exists(output_dir):
+            os.makedirs(output_dir)
 
-    if not osp.exists(CUBE_CONFIGS["output_dir"]):
-        os.makedirs(CUBE_CONFIGS["output_dir"])
-
-    args = _parse_args()
-    args.func(args)
+        args = _parse_args()
+        args.func(args)
+    except Exception as e:
+        raise e
+    finally:
+        remove_cur_run(output_dir)
 
 
 if __name__ == "__main__":
