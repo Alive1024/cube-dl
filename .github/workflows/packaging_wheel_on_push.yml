@@ -3,7 +3,7 @@ name: Packaging Wheel
 on:
   push:
     branches: ["main"]
-    paths: ["cube/**", "!**.md"]
+    paths: ["cube/**", "pyproject.toml", "!**.md"]
 
   workflow_dispatch:
 
