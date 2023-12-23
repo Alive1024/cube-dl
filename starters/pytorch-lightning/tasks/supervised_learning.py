@@ -47,7 +47,7 @@ class SupervisedLearningTaskModule(TaskBase):
 
     def _shared_eval_step(self, batch, batch_idx, metrics: dict | MetricCollection) -> dict:
         input_data, target = batch
-        pred = self.model(input_data)
+        pred = self(input_data)
 
         if isinstance(metrics, MetricCollection):
             return metrics(pred, target)  # `MetricCollection` returns a flat dict
