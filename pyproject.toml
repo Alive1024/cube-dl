@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cube"
-version = "0.2.5"
+version = "0.2.6"
 description = ""
 authors = ["Alive1024 <2431945058@qq.com>"]
 readme = "README.md"
