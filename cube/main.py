@@ -363,9 +363,9 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
     root_config = get_root_config_instance(args.config_file)
     output_dir = CUBE_CONFIGS["output_dir"]
 
+    run_dao = DAOFactory.get_run_dao()
     loaded_run = try_to_load_run(output_dir)
     if loaded_run is None:
-        run_dao = DAOFactory.get_run_dao()
         # When resuming fit, the run should resume from the original.
         if job_type == "resume-fit":
             proj_id, exp_id, run_id = run_dao.parse_ids_from_ckpt_path(args.resume_from)
@@ -433,7 +433,7 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
                 root_config.task_module,
                 root_config.data_module,
             )
-    
+
     else:
         raise ValueError(f"Unrecognized job type: {job_type}!")
 
@@ -441,6 +441,7 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
 
 
 def main():
+    output_dir = None
     try:
         global CUBE_CONFIGS
         CUBE_CONFIGS = parse_cube_configs()
@@ -454,7 +455,8 @@ def main():
     except Exception as e:
         raise e
     finally:
-        remove_cur_run(output_dir)
+        if output_dir is not None:
+            remove_cur_run(output_dir)
 
 
 if __name__ == "__main__":
