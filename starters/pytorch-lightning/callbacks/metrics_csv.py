@@ -68,6 +68,7 @@ class MetricsCSVCallback(CubeCallback):
 
             with open(osp.join(run_dir, "merged_metrics.csv"), "w") as merged_metrics_csv:
                 writer = csv.DictWriter(merged_metrics_csv, fieldnames=fieldnames)
+                writer.writeheader()
                 for csv_fn in metrics_csv_files:
                     with open(osp.join(run_dir, csv_fn)) as metrics_csv:
                         reader = csv.DictReader(metrics_csv)
