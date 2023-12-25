@@ -10,9 +10,19 @@ from datetime import datetime
 from .dao import ExperimentDAO, ProjectDAO, RunDAO
 from .dao_json_impl import ExperimentDAOJsonImpl, ProjectDAOJsonImpl, RunDAOJsonImpl
 from .entities import Experiment, Project, Run, generate_id
-from .run_context import CUR_RUN_FILENAME, dump_run, remove_cur_run, try_to_load_run
+from .run_context import _CUR_RUN_PREFIX, dump_run, load_run, remove_run
 
-__all__ = ["Project", "Experiment", "Run", "EntityFactory", "DAOFactory" , "CUR_RUN_FILENAME", "remove_cur_run", "try_to_load_run", "dump_run"]
+__all__ = [
+    "Project",
+    "Experiment",
+    "Run",
+    "EntityFactory",
+    "DAOFactory",
+    "_CUR_RUN_PREFIX",
+    "remove_run",
+    "load_run",
+    "dump_run",
+]
 
 
 def _make_dir(target_dir, created_type: str, print_message=True):

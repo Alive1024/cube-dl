@@ -9,7 +9,7 @@ from rich.columns import Columns
 from rich.console import Console
 from rich.table import Table
 
-from cube.c3lyr import DAOFactory, EntityFactory, dump_run, remove_cur_run, try_to_load_run
+from cube.c3lyr import DAOFactory, EntityFactory, dump_run, load_run, remove_run
 from cube.config_sys import get_root_config_instance
 from cube.core import CUBE_CONTEXT
 from cube.utils import parse_cube_configs
@@ -364,8 +364,7 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
     output_dir = CUBE_CONFIGS["output_dir"]
 
     run_dao = DAOFactory.get_run_dao()
-    loaded_run = try_to_load_run(output_dir)
-    if loaded_run is None:
+    if os.environ.get("CUBE_RUN_ID", None) is None:
         # When resuming fit, the run should resume from the original.
         if job_type == "resume-fit":
             proj_id, exp_id, run_id = run_dao.parse_ids_from_ckpt_path(args.resume_from)
@@ -385,9 +384,11 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
             run_dao.insert_entry(run)
             run.is_resuming = False
 
-        dump_run(run, output_dir)
+        dump_run(run, output_dir, run.global_id)
+        os.environ["CUBE_RUN_ID"] = run.global_id
 
     else:
+        loaded_run = load_run(output_dir, os.environ["CUBE_RUN_ID"])
         run = loaded_run
 
     CUBE_CONTEXT["run"] = run
@@ -455,8 +456,9 @@ def main():
     except Exception as e:
         raise e
     finally:
-        if output_dir is not None:
-            remove_cur_run(output_dir)
+        run_id = os.environ.get("CUBE_RUN_ID", None)
+        if output_dir is not None and run_id is not None:
+            remove_run(output_dir, run_id)
 
 
 if __name__ == "__main__":
