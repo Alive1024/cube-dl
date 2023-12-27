@@ -3,6 +3,7 @@ import os
 import os.path as osp
 import re
 import shutil
+import warnings
 
 from cube.callback import CubeCallback
 from cube.core import CUBE_CONTEXT
@@ -14,10 +15,17 @@ class MetricsCSVCallback(CubeCallback):
 
     @rank_zero_only
     def on_run_start(self):
-        """
-        Since `pytorch_lightning.loggers.CSVLogger` will override previous "metrics.csv",
-        special process is needed when resuming fit to avoid "metrics.csv" being overridden.
-        """
+        # Supress the non-empty log directory warning
+        warnings.filterwarnings(
+            action="ignore",
+            message="Experiment logs directory .* exists and is not empty. Previous log files in this directory will "
+            "be deleted when the new ones are saved!",
+            category=UserWarning,
+            module="lightning_fabric",
+        )
+
+        # Since `pytorch_lightning.loggers.CSVLogger` will override previous "metrics.csv",
+        # special process is needed when resuming fit to avoid "metrics.csv" being overridden.
         if CUBE_CONTEXT["run"].is_resuming:
             run_dir = CUBE_CONTEXT["run"].run_dir
             metrics_csv_path = osp.join(run_dir, "metrics.csv")
