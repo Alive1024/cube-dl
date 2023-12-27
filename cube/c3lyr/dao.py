@@ -24,6 +24,10 @@ class _EntityDAOBase(metaclass=ABCMeta):
     def update_entry(self, entity: ENTITY_T, **kwargs):
         pass
 
+    @abstractmethod
+    def remove_entry(self, entity: ENTITY_T, **kwargs):
+        pass
+
 
 class ProjectDAO(_EntityDAOBase, metaclass=ABCMeta):
     @staticmethod

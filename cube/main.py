@@ -1,7 +1,9 @@
 import argparse
 import os
 import os.path as osp
+import shutil
 import sys
+import warnings
 from functools import partial
 from typing import Any, Literal
 
@@ -25,7 +27,7 @@ def _parse_args():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
-    # >>>>>>>>>>>>>>>>>>>>>>> Subcommand 1: init >>>>>>>>>>>>>>>>>>>>>>>
+    # >>>>>>>>>>>>>>>>>>>>>>> Subcommand: init >>>>>>>>>>>>>>>>>>>>>>>
     parser_init = subparsers.add_parser("init", help="Create a new proj and a new exp.")
     parser_init.add_argument(
         "-pn",
@@ -64,7 +66,7 @@ def _parse_args():
     parser_init.set_defaults(func=init)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    # >>>>>>>>>>>>>>>>>>>>>>> Subcommand 2: add-exp >>>>>>>>>>>>>>>>>>>>>>>
+    # >>>>>>>>>>>>>>>>>>>>>>> Subcommand: add-exp >>>>>>>>>>>>>>>>>>>>>>>
     parser_exp = subparsers.add_parser("add-exp", help="Create a new exp within specified proj.")
     parser_exp.add_argument(
         "-p",
@@ -92,7 +94,7 @@ def _parse_args():
     parser_exp.set_defaults(func=add_exp)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand 3: ls >>>>>>>>>>>>>>>>>>>>>>>>>>
+    # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand: ls >>>>>>>>>>>>>>>>>>>>>>>>>>
     parser_ls = subparsers.add_parser("ls", help="Display info about proj, exp and runs in tables.")
     # These params are exclusive to each other
     param_group_ls = parser_ls.add_mutually_exclusive_group(required=False)
@@ -130,6 +132,35 @@ def _parse_args():
     parser_ls.set_defaults(func=ls)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+    # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand: rm >>>>>>>>>>>>>>>>>>>>>>>>>>
+    parser_rm = subparsers.add_parser("rm", help="Remove proj / exp / run.")
+    param_group_rm = parser_rm.add_mutually_exclusive_group(required=True)
+    param_group_rm.add_argument("-i", "--id", type=str, help="ID of the proj/exp/run that is going to be removed.")
+    param_group_rm.add_argument(
+        "-e",
+        "--exps-of",
+        "--exps_of",
+        type=str,
+        help="ID of the proj whose exp(s) is going to be removed.",
+    )
+    param_group_rm.add_argument(
+        "-r",
+        "--runs-of",
+        "--runs_of",
+        type=str,
+        nargs=2,
+        help="IDs (proj_ID exp_ID) of the proj and the exp whose run(s) is going to be removed.",
+    )
+    param_group_rm.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        default=False,
+        help="Remove all contents in the output directory.",
+    )
+    parser_rm.set_defaults(func=rm)
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>> Subcommands: fit, resume-fit, validate, test, predict >>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     # Create a parent subparser containing common arguments.
     # Ref: https://stackoverflow.com/questions/7498595/python-argparse-add-argument-to-multiple-subparsers
@@ -163,7 +194,7 @@ def _parse_args():
         "-d", "--desc", type=str, required=False, default="", help="Description of the new run."
     )
 
-    # >>>>>>>>>>>>>> Subcommand 4: fit >>>>>>>>>>>>>>>
+    # >>>>>>>>>>>>>> Subcommand: fit >>>>>>>>>>>>>>>
     parser_fit = subparsers.add_parser(
         "fit",
         parents=[exec_parent_parser],
@@ -172,7 +203,7 @@ def _parse_args():
     parser_fit.set_defaults(func=partial(_exec, job_type="fit"))
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-    # >>>>>>>>>>> Subcommand 5: resume-fit >>>>>>>>>>>
+    # >>>>>>>>>>> Subcommand: resume-fit >>>>>>>>>>>
     parser_resume_fit = subparsers.add_parser("resume-fit", help="Resume an interrupted fit run.")
     parser_resume_fit.add_argument(
         "-c",
@@ -214,7 +245,7 @@ def _parse_args():
     )
     parser_validate.set_defaults(func=partial(_exec, job_type="validate"))
 
-    # >>>>>>>>>>> Subcommand 7: test >>>>>>>>>>>
+    # >>>>>>>>>>> Subcommand: test >>>>>>>>>>>
     parser_test = subparsers.add_parser(
         "test",
         parents=[exec_parent_parser, validate_test_predict_parent_parser],
@@ -222,7 +253,7 @@ def _parse_args():
     )
     parser_test.set_defaults(func=partial(_exec, job_type="test"))
 
-    # >>>>>>>>>>> Subcommand 8: predict >>>>>>>>>>>
+    # >>>>>>>>>>> Subcommand: predict >>>>>>>>>>>
     parser_predict = subparsers.add_parser(
         "predict",
         parents=[exec_parent_parser, validate_test_predict_parent_parser],
@@ -357,6 +388,80 @@ def ls(args: argparse.Namespace):
         )
 
     console.print(table)
+
+
+def _confirm_rm(message: str = "") -> bool:
+    reply = input(f"{message}, are you sure? [y/n]")
+    if reply.lower() == "y":
+        return True
+    return False
+
+
+def rm(args: argparse.Namespace):  # noqa: C901
+    output_dir = CUBE_CONFIGS["output_dir"]
+    proj_dao = DAOFactory.get_proj_dao()
+    exp_dao = DAOFactory.get_exp_dao()
+    run_dao = DAOFactory.get_run_dao()
+
+    # Remove the entity with specific ID
+    if args.id:
+        not_found = True
+        for proj_dict in proj_dao.get_projects(output_dir):
+            if proj_dict["Proj ID"] == args.id:
+                if not _confirm_rm(f'Proj "{args.id}" and its all contents will be removed'):
+                    return
+                proj = proj_dao.get_proj_from_id(output_dir, args.id)
+                proj_dao.remove_entry(proj)
+                return
+
+            for exp_dict in exp_dao.get_exps_of(output_dir, proj_dict["Proj ID"]):
+                if exp_dict["Exp ID"] == args.id:
+                    if not _confirm_rm(f'Exp "{args.id}" and its all contents will be removed'):
+                        return
+                    exp = exp_dao.get_exp_from_id(output_dir, proj_dict["Proj ID"], args.id)
+                    exp_dao.remove_entry(exp)
+                    return
+
+                for run_dict in run_dao.get_runs_of(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"]):
+                    if run_dict["Run ID"] == args.id:
+                        if not _confirm_rm(f'Run "{args.id}" will be removed'):
+                            return
+                        run = run_dao.get_run_from_id(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"], args.id)
+                        run_dao.remove_entry(run)
+                        return
+        if not_found:
+            warnings.warn(f'There is no any proj/exp/run with ID "{args.id}" found, nothing done.')
+
+    # Remove all exps of in a proj
+    elif args.exps_of:
+        try:
+            exps = exp_dao.get_exps_of(output_dir, args.exps_of)
+        except FileNotFoundError:
+            warnings.warn(f'There is no proj with ID "{args.exps_of}", nothing done.')
+        else:
+            if not _confirm_rm(f'Exp(s) of proj "{args.exps_of}" will be removed'):
+                return
+            for exp_dict in exps:
+                exp = exp_dao.get_exp_from_id(output_dir, args.exps_of, exp_dict["Exp ID"])
+                exp_dao.remove_entry(exp)
+
+    # Remove all runs of an exp of a proj
+    elif args.runs_of:
+        try:
+            runs = run_dao.get_runs_of(output_dir, args.runs_of[0], args.runs_of[1])
+        except (FileNotFoundError, KeyError):
+            warnings.warn(f'There is no proj & exp with IDs "{args.runs_of[0]}" "{args.runs_of[1]}", nothing done.')
+        else:
+            if not _confirm_rm(f'Run(s) of exp "{args.runs_of[0]}" of proj "{args.runs_of[1]}" will be removed'):
+                return
+            for run_dict in runs:
+                run = run_dao.get_run_from_id(output_dir, args.runs_of[0], args.runs_of[1], run_dict["Run ID"])
+                run_dao.remove_entry(run)
+
+    elif args.all:
+        if not _confirm_rm(f'All contents in "{output_dir}" will be removed'):
+            return
+        shutil.rmtree(output_dir)
 
 
 def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901

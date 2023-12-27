@@ -2,6 +2,7 @@ import json
 import os
 import os.path as osp
 import re
+import shutil
 from collections import OrderedDict
 from datetime import datetime
 
@@ -40,7 +41,7 @@ def _get_record_file_path_from_proj_id(proj_id: str, output_dir: str):
         if name.startswith(f"{Project.ENTITY_TYPE}_{proj_id}_"):
             record_file_path = osp.join(output_dir, name, name + ".json")
     if record_file_path is None:
-        raise FileNotFoundError(f"There is no record file with id {proj_id} in {output_dir}.")
+        raise FileNotFoundError(f'There is no record file with id "{proj_id}" in "{output_dir}".')
     return record_file_path
 
 
@@ -118,6 +119,10 @@ class ProjectDAOJsonImpl(ProjectDAO):
             proj["Exps"] = ExperimentDAOJsonImpl.get_exps_of(output_dir, proj["Proj ID"])
         return projects_exps
 
+    def remove_entry(self, proj: Project, **kwargs):
+        shutil.rmtree(proj.proj_dir)
+        os.remove(_get_record_file_path_from_proj(proj))
+
 
 class ExperimentDAOJsonImpl(ExperimentDAO):
     def set_extra_data(self, exp: Experiment, **kwargs):
@@ -187,6 +192,13 @@ class ExperimentDAOJsonImpl(ExperimentDAO):
         for exp in exps_runs:
             exp["Runs"] = RunDAOJsonImpl.get_runs_of(output_dir, proj_id, exp["Exp ID"])
         return exps_runs
+
+    def remove_entry(self, exp: Experiment, **kwargs):
+        shutil.rmtree(exp.exp_dir)
+        record_file_path = _get_record_file_path_from_proj(exp.belonging_proj)
+        record = _json_read_from_path(record_file_path)
+        del record["Exps"][exp.global_id]
+        _json_dump_to_file(record, record_file_path)
 
 
 class RunDAOJsonImpl(RunDAO):
@@ -267,3 +279,10 @@ class RunDAOJsonImpl(RunDAO):
                 )
             )
         return runs
+
+    def remove_entry(self, run: Run, **kwargs):
+        shutil.rmtree(run.run_dir)
+        record_file_path = _get_record_file_path_from_proj(run.belonging_exp.belonging_proj)
+        record = _json_read_from_path(record_file_path)
+        del record["Exps"][run.belonging_exp.global_id]["Runs"][run.global_id]
+        _json_dump_to_file(record, record_file_path)
