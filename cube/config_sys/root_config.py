@@ -7,7 +7,7 @@ import shutil
 from collections import OrderedDict
 from collections.abc import Callable, Iterable
 from functools import partial
-from typing import Literal
+from typing import Any, Literal
 
 from torch.nn import Module
 
@@ -59,7 +59,7 @@ class RootConfig:
         validate_runner_getter: RUNNER_GETTER_T | None = None,
         test_runner_getter: RUNNER_GETTER_T | None = None,
         predict_runner_getter: RUNNER_GETTER_T | None = None,
-        seed_func: Callable[[int | None], None],
+        seed_func: Callable[[int | None], Any],
         global_seed: int | None = 42,
         archive_config: ARCHIVED_CONFIG_FORMAT | bool = "single-py",
         callbacks: CubeCallback | Iterable[CubeCallback] | None = None,
