@@ -15,7 +15,7 @@ class MetricsCSVCallback(CubeCallback):
 
     @rank_zero_only
     def on_run_start(self):
-        # Supress the non-empty log directory warning
+        # Suppress the non-empty log directory warning
         warnings.filterwarnings(
             action="ignore",
             message="Experiment logs directory .* exists and is not empty. Previous log files in this directory will "

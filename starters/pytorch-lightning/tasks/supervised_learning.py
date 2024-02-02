@@ -5,7 +5,7 @@ from torchmetrics import Metric, MetricCollection
 from .base import METRICS_T, TaskBase
 
 
-class SupervisedLearningTaskModule(TaskBase):
+class SupervisedLearningTask(TaskBase):
     def __init__(
         self,
         model: nn.Module,

@@ -4,6 +4,7 @@ import os.path as osp
 import shutil
 import sys
 import warnings
+from copy import deepcopy
 from functools import partial
 from typing import Any, Literal
 
@@ -135,7 +136,9 @@ def _parse_args():
     # >>>>>>>>>>>>>>>>>>>>>>>>>> Subcommand: rm >>>>>>>>>>>>>>>>>>>>>>>>>>
     parser_rm = subparsers.add_parser("rm", help="Remove proj / exp / run.")
     param_group_rm = parser_rm.add_mutually_exclusive_group(required=True)
-    param_group_rm.add_argument("-i", "--id", type=str, help="ID of the proj/exp/run that is going to be removed.")
+    param_group_rm.add_argument(
+        "-i", "--id", type=str, nargs="+", help="ID(s) of the proj/exp/run that is going to be removed."
+    )
     param_group_rm.add_argument(
         "-e",
         "--exps-of",
@@ -391,7 +394,7 @@ def ls(args: argparse.Namespace):
 
 
 def _confirm_rm(message: str = "") -> bool:
-    reply = input(f"{message}, are you sure? [y/n]")
+    reply = input(f"{message}, proceeded? [y/n] ")
     if reply.lower() == "y":
         return True
     return False
@@ -403,34 +406,44 @@ def rm(args: argparse.Namespace):  # noqa: C901
     exp_dao = DAOFactory.get_exp_dao()
     run_dao = DAOFactory.get_run_dao()
 
-    # Remove the entity with specific ID
+    # Remove the entity with specific ID(s)
     if args.id:
-        not_found = True
+        entity_ids = deepcopy(args.id)
+
         for proj_dict in proj_dao.get_projects(output_dir):
-            if proj_dict["Proj ID"] == args.id:
-                if not _confirm_rm(f'Proj "{args.id}" and its all contents will be removed'):
+            if proj_dict["Proj ID"] in entity_ids:
+                if _confirm_rm(f'Proj "{proj_dict["Proj ID"]}" and its all contents will be removed'):
+                    proj = proj_dao.get_proj_from_id(output_dir, proj_dict["Proj ID"])
+                    proj_dao.remove_entry(proj)
+
+                entity_ids.remove(proj_dict["Proj ID"])
+                if len(entity_ids) == 0:
                     return
-                proj = proj_dao.get_proj_from_id(output_dir, args.id)
-                proj_dao.remove_entry(proj)
-                return
 
             for exp_dict in exp_dao.get_exps_of(output_dir, proj_dict["Proj ID"]):
-                if exp_dict["Exp ID"] == args.id:
-                    if not _confirm_rm(f'Exp "{args.id}" and its all contents will be removed'):
+                if exp_dict["Exp ID"] in entity_ids:
+                    if _confirm_rm(f'Exp "{exp_dict["Exp ID"]}" and its all contents will be removed'):
+                        exp = exp_dao.get_exp_from_id(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"])
+                        exp_dao.remove_entry(exp)
+
+                    entity_ids.remove(exp_dict["Exp ID"])
+                    if len(entity_ids) == 0:
                         return
-                    exp = exp_dao.get_exp_from_id(output_dir, proj_dict["Proj ID"], args.id)
-                    exp_dao.remove_entry(exp)
-                    return
 
                 for run_dict in run_dao.get_runs_of(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"]):
-                    if run_dict["Run ID"] == args.id:
-                        if not _confirm_rm(f'Run "{args.id}" will be removed'):
+                    if run_dict["Run ID"] in entity_ids:
+                        if _confirm_rm(f'Run "{run_dict["Run ID"]}" will be removed'):
+                            run = run_dao.get_run_from_id(
+                                output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"], run_dict["Run ID"]
+                            )
+                            run_dao.remove_entry(run)
+
+                        entity_ids.remove(run_dict["Run ID"])
+                        if len(entity_ids) == 0:
                             return
-                        run = run_dao.get_run_from_id(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"], args.id)
-                        run_dao.remove_entry(run)
-                        return
-        if not_found:
-            warnings.warn(f'There is no any proj/exp/run with ID "{args.id}" found, nothing done.')
+
+        if len(entity_ids) != 0:
+            warnings.warn(f'There is no any proj/exp/run with ID "{", ".join(entity_ids)}" found.')
 
     # Remove all exps of in a proj
     elif args.exps_of:

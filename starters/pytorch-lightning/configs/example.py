@@ -85,7 +85,6 @@ def get_fit_runner():
                 save_top_k=1,
                 monitor="val_mean_acc",
                 mode="max",
-                save_last=True,
             ),
         ],
         logger=get_csv_logger(run),
@@ -94,6 +93,10 @@ def get_fit_runner():
 
 @cube_runner
 def get_test_runner():
+    """
+    "It is recommended to validate on single device to ensure each sample/batch gets evaluated exactly once."
+    See: https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#test-loop
+    """
     run = CUBE_CONTEXT["run"]
     return pl.Trainer(
         accelerator="auto",
