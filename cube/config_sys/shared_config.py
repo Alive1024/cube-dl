@@ -21,7 +21,7 @@ class _SharedConfig:
 
     def get(self, name: str) -> Any:
         if name not in self._data:
-            raise ValueError(f"There is no data named {name}.")
+            raise ValueError(f"There is no configuration named {name}.")
         return self._data[name]
 
 

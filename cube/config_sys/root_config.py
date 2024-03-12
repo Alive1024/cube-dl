@@ -15,7 +15,7 @@ from cube.c3lyr import Run
 from cube.callback import CubeCallback, CubeCallbackList
 from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
 
-ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"]
+ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"] | bool
 RUNNER_GETTER_T = Callable[[], CubeRunner]
 RUNNER_TYPES_T = Literal["default", "fit", "validate", "test", "predict", "tune"]
 
@@ -61,7 +61,7 @@ class RootConfig:
         predict_runner_getter: RUNNER_GETTER_T | None = None,
         seed_func: Callable[[int | None], Any],
         global_seed: int | None = 42,
-        archive_config: ARCHIVED_CONFIG_FORMAT | bool = "single-py",
+        archive_config: ARCHIVED_CONFIG_FORMAT = "single-py",
         callbacks: CubeCallback | Iterable[CubeCallback] | None = None,
     ):
         if (
@@ -384,12 +384,16 @@ class RootConfig:
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     def _save_config(self, config_format: ARCHIVED_CONFIG_FORMAT, run: Run):
+        # No saving config
+        if not config_format:
+            return
+
         # Archive config file(s)
         root_config_getter = getattr(self, "root_config_getter")
         archived_configs_dir = run.run_dir
         run_id = run.global_id
 
-        if config_format == "single-py":
+        if config_format is True or config_format == "single-py":
             self._archive_config_into_single(
                 root_config_getter=root_config_getter,
                 archived_configs_dir=archived_configs_dir,

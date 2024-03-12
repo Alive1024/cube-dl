@@ -41,7 +41,6 @@ def get_wandb_logger(run: Run) -> WandbLogger:
         # The name of the project to which this run will belong:
         project=belonging_proj.dirname,
         group=belonging_exp.dirname,  # use exp_name to group runs
-        job_type=run.job_type,
         id=run.global_id,
     )
     return wandb_logger_partial(resume="must") if run.is_resuming else wandb_logger_partial()
