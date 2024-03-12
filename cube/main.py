@@ -7,6 +7,7 @@ import warnings
 from copy import deepcopy
 from functools import partial
 from typing import Any, Literal
+from warnings import warn
 
 from rich.columns import Columns
 from rich.console import Console
@@ -161,6 +162,13 @@ def _parse_args():
         default=False,
         help="Remove all contents in the output directory.",
     )
+    parser_rm.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        default=False,
+        help="Automatic yes to all confirmation.",
+    )
     parser_rm.set_defaults(func=rm)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -235,10 +243,9 @@ def _parse_args():
         "--loaded-ckpt",
         "--loaded_ckpt",
         type=str,
-        default=None,
-        help="File path to the loaded model checkpoint. Default is None, "
-        "which means you are going to conduct validate/test/predict "
-        "using the initialized model without loading any weights).",
+        help='File path to the loaded model checkpoint. Use an empty string "" to indicate '
+        "you are going to conduct validate/test/predict using the initialized model without "
+        "loading any weights).",
     )
     # >>>>>>>>>>> Subcommand 6: validate >>>>>>>>>>>
     parser_validate = subparsers.add_parser(
@@ -393,7 +400,9 @@ def ls(args: argparse.Namespace):
     console.print(table)
 
 
-def _confirm_rm(message: str = "") -> bool:
+def _confirm_rm(message: str = "", yes: bool = False) -> bool:
+    if yes:
+        return True
     reply = input(f"{message}, proceeded? [y/n] ")
     if reply.lower() == "y":
         return True
@@ -411,34 +420,32 @@ def rm(args: argparse.Namespace):  # noqa: C901
         entity_ids = deepcopy(args.id)
 
         for proj_dict in proj_dao.get_projects(output_dir):
-            if proj_dict["Proj ID"] in entity_ids:
-                if _confirm_rm(f'Proj "{proj_dict["Proj ID"]}" and its all contents will be removed'):
-                    proj = proj_dao.get_proj_from_id(output_dir, proj_dict["Proj ID"])
+            if proj_dict["ID"] in entity_ids:
+                if _confirm_rm(f'Proj "{proj_dict["ID"]}" and its all contents will be removed', yes=args.yes):
+                    proj = proj_dao.get_proj_from_id(output_dir, proj_dict["ID"])
                     proj_dao.remove_entry(proj)
 
-                entity_ids.remove(proj_dict["Proj ID"])
+                entity_ids.remove(proj_dict["ID"])
                 if len(entity_ids) == 0:
                     return
 
-            for exp_dict in exp_dao.get_exps_of(output_dir, proj_dict["Proj ID"]):
-                if exp_dict["Exp ID"] in entity_ids:
-                    if _confirm_rm(f'Exp "{exp_dict["Exp ID"]}" and its all contents will be removed'):
-                        exp = exp_dao.get_exp_from_id(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"])
+            for exp_dict in exp_dao.get_exps_of(output_dir, proj_dict["ID"]):
+                if exp_dict["ID"] in entity_ids:
+                    if _confirm_rm(f'Exp "{exp_dict["ID"]}" and its all contents will be removed', yes=args.yes):
+                        exp = exp_dao.get_exp_from_id(output_dir, proj_dict["ID"], exp_dict["ID"])
                         exp_dao.remove_entry(exp)
 
-                    entity_ids.remove(exp_dict["Exp ID"])
+                    entity_ids.remove(exp_dict["ID"])
                     if len(entity_ids) == 0:
                         return
 
-                for run_dict in run_dao.get_runs_of(output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"]):
-                    if run_dict["Run ID"] in entity_ids:
-                        if _confirm_rm(f'Run "{run_dict["Run ID"]}" will be removed'):
-                            run = run_dao.get_run_from_id(
-                                output_dir, proj_dict["Proj ID"], exp_dict["Exp ID"], run_dict["Run ID"]
-                            )
+                for run_dict in run_dao.get_runs_of(output_dir, proj_dict["ID"], exp_dict["ID"]):
+                    if run_dict["ID"] in entity_ids:
+                        if _confirm_rm(f'Run "{run_dict["ID"]}" will be removed', yes=args.yes):
+                            run = run_dao.get_run_from_id(output_dir, proj_dict["ID"], exp_dict["ID"], run_dict["ID"])
                             run_dao.remove_entry(run)
 
-                        entity_ids.remove(run_dict["Run ID"])
+                        entity_ids.remove(run_dict["ID"])
                         if len(entity_ids) == 0:
                             return
 
@@ -452,7 +459,7 @@ def rm(args: argparse.Namespace):  # noqa: C901
         except FileNotFoundError:
             warnings.warn(f'There is no proj with ID "{args.exps_of}", nothing done.')
         else:
-            if not _confirm_rm(f'Exp(s) of proj "{args.exps_of}" will be removed'):
+            if not _confirm_rm(f'Exp(s) of proj "{args.exps_of}" will be removed', yes=args.yes):
                 return
             for exp_dict in exps:
                 exp = exp_dao.get_exp_from_id(output_dir, args.exps_of, exp_dict["Exp ID"])
@@ -465,14 +472,16 @@ def rm(args: argparse.Namespace):  # noqa: C901
         except (FileNotFoundError, KeyError):
             warnings.warn(f'There is no proj & exp with IDs "{args.runs_of[0]}" "{args.runs_of[1]}", nothing done.')
         else:
-            if not _confirm_rm(f'Run(s) of exp "{args.runs_of[0]}" of proj "{args.runs_of[1]}" will be removed'):
+            if not _confirm_rm(
+                f'Run(s) of exp "{args.runs_of[0]}" of proj "{args.runs_of[1]}" will be removed', yes=args.yes
+            ):
                 return
             for run_dict in runs:
-                run = run_dao.get_run_from_id(output_dir, args.runs_of[0], args.runs_of[1], run_dict["Run ID"])
+                run = run_dao.get_run_from_id(output_dir, args.runs_of[0], args.runs_of[1], run_dict["ID"])
                 run_dao.remove_entry(run)
 
     elif args.all:
-        if not _confirm_rm(f'All contents in "{output_dir}" will be removed'):
+        if not _confirm_rm(f'All contents in "{output_dir}" will be removed', yes=args.yes):
             return
         shutil.rmtree(output_dir)
 
@@ -531,10 +540,15 @@ def _exec(args: argparse.Namespace, job_type: JOB_TYPES_T):  # noqa: C901
         )
 
     elif job_type in ("validate", "test", "predict"):
-        if args.loaded_ckpt is not None:
+        if args.loaded_ckpt.strip() != "":
             # Load the specified checkpoint
             loaded_task_module = root_config.task_module.load_checkpoint(args.loaded_ckpt)
             root_config.task_module = loaded_task_module  # update the task module
+        else:
+            warn(
+                'The argument "-lc" is empty, you are going to conduct validate/test/predict using the '
+                "initialized model without loading any weights)."
+            )
 
         run_dao.set_extra_data(run, loaded_ckpt=args.loaded_ckpt)  # save the loaded ckpt info
         if job_type == "validate":

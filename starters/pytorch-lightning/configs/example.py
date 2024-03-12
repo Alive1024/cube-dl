@@ -18,7 +18,7 @@ from torchvision.datasets.mnist import MNIST
 
 from callbacks.metrics_csv import MetricsCSVCallback
 from models.cnn_example import ExampleCNN
-from tasks.supervised_learning import SupervisedLearningTaskModule
+from tasks.supervised_learning import SupervisedLearningTask
 from utils.logger import get_csv_logger
 
 from .components.mnist_data_module import get_mnist_data_module
@@ -37,7 +37,7 @@ def get_task_module():
         lr=shared_config.get("lr_bs32") / 32 * shared_config.get("batch_size"),
     )
     num_classes = shared_config.get("num_classes")
-    return SupervisedLearningTaskModule(
+    return SupervisedLearningTask(
         model=model,
         loss_function=nn.CrossEntropyLoss(),
         optimizer=optimizer,

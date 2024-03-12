@@ -61,11 +61,11 @@ class ProjectDAOJsonImpl(ProjectDAO):
     def insert_entry(self, proj: Project):
         entry = OrderedDict(
             {
-                "Proj ID": proj.global_id,
-                "Proj Name": proj.name,
-                "Proj Desc": proj.desc,
-                "Created Time": proj.created_time,
-                "Storage Path": proj.proj_dir,
+                "ID": proj.global_id,
+                "Name": proj.name,
+                "Desc": proj.desc,
+                "CreatedTime": proj.created_time,
+                "Path": proj.proj_dir,
                 "Exps": OrderedDict(),
             }
         )
@@ -84,10 +84,10 @@ class ProjectDAOJsonImpl(ProjectDAO):
         record = _json_read_from_path(_get_record_file_path_from_proj_id(proj_id, output_dir))
         proj = Project()
         proj.global_id = proj_id
-        proj.name = record["Proj Name"]
-        proj.desc = record["Proj Desc"]
-        proj.created_time = record["Created Time"]
-        proj.proj_dir = record["Storage Path"]
+        proj.name = record["Name"]
+        proj.desc = record["Desc"]
+        proj.created_time = record["CreatedTime"]
+        proj.proj_dir = record["Path"]
         return proj
 
     @staticmethod
@@ -101,22 +101,22 @@ class ProjectDAOJsonImpl(ProjectDAO):
                     projects.append(
                         OrderedDict(
                             {
-                                "Proj ID": record["Proj ID"],
-                                "Proj Name": record["Proj Name"],
-                                "Proj Desc": record["Proj Desc"],
-                                "Created Time": record["Created Time"],
+                                "ID": record["ID"],
+                                "Name": record["Name"],
+                                "Desc": record["Desc"],
+                                "CreatedTime": record["CreatedTime"],
                             }
                         )
                     )
         # Sort the list according to the created time
-        projects.sort(key=lambda proj: datetime.strptime(proj["Created Time"], "%Y-%m-%d %H:%M:%S"))
+        projects.sort(key=lambda proj: datetime.strptime(proj["CreatedTime"], "%Y-%m-%d %H:%M:%S"))
         return projects
 
     @staticmethod
     def get_all_projects_exps(output_dir: str) -> list[OrderedDict]:
         projects_exps = ProjectDAOJsonImpl.get_projects(output_dir)
         for proj in projects_exps:
-            proj["Exps"] = ExperimentDAOJsonImpl.get_exps_of(output_dir, proj["Proj ID"])
+            proj["Exps"] = ExperimentDAOJsonImpl.get_exps_of(output_dir, proj["ID"])
         return projects_exps
 
     def remove_entry(self, proj: Project, **kwargs):
@@ -137,10 +137,10 @@ class ExperimentDAOJsonImpl(ExperimentDAO):
     def insert_entry(self, exp: Experiment):
         entry = OrderedDict(
             {
-                "Exp Name": exp.name,
-                "Exp Desc": exp.desc,
-                "Created Time": exp.created_time,
-                "Storage Path": exp.exp_dir,
+                "Name": exp.name,
+                "Desc": exp.desc,
+                "CreatedTime": exp.created_time,
+                "Path": exp.exp_dir,
                 "Runs": OrderedDict(),
             }
         )
@@ -162,10 +162,10 @@ class ExperimentDAOJsonImpl(ExperimentDAO):
         record_exp = _json_read_from_path(_get_record_file_path_from_proj_id(proj_id, output_dir))["Exps"][exp_id]
         exp = Experiment()
         exp.global_id = exp_id
-        exp.name = record_exp["Exp Name"]
-        exp.desc = record_exp["Exp Desc"]
-        exp.created_time = record_exp["Created Time"]
-        exp.exp_dir = record_exp["Storage Path"]
+        exp.name = record_exp["Name"]
+        exp.desc = record_exp["Desc"]
+        exp.created_time = record_exp["CreatedTime"]
+        exp.exp_dir = record_exp["Path"]
         exp.belonging_proj = ProjectDAOJsonImpl.get_proj_from_id(output_dir, proj_id)
         return exp
 
@@ -177,10 +177,10 @@ class ExperimentDAOJsonImpl(ExperimentDAO):
             exps.append(
                 OrderedDict(
                     {
-                        "Exp ID": exp_id,
-                        "Exp Name": exp["Exp Name"],
-                        "Exp Desc": exp["Exp Desc"],
-                        "Created Time": exp["Created Time"],
+                        "ID": exp_id,
+                        "Name": exp["Name"],
+                        "Desc": exp["Desc"],
+                        "CreatedTime": exp["CreatedTime"],
                     }
                 )
             )
@@ -190,7 +190,7 @@ class ExperimentDAOJsonImpl(ExperimentDAO):
     def get_all_exps_runs(output_dir: str, proj_id: str) -> list[OrderedDict]:
         exps_runs = ExperimentDAOJsonImpl.get_exps_of(output_dir, proj_id)
         for exp in exps_runs:
-            exp["Runs"] = RunDAOJsonImpl.get_runs_of(output_dir, proj_id, exp["Exp ID"])
+            exp["Runs"] = RunDAOJsonImpl.get_runs_of(output_dir, proj_id, exp["ID"])
         return exps_runs
 
     def remove_entry(self, exp: Experiment, **kwargs):
@@ -215,12 +215,11 @@ class RunDAOJsonImpl(RunDAO):
     def insert_entry(self, run: Run):
         entry = OrderedDict(
             {
-                "Run Name": run.name,
-                "Run Desc": run.desc,
-                "Created Time": run.created_time,
-                "Storage Path": run.run_dir,
-                "Job Type": run.job_type,
-                "Run Summary": run.run_summary,
+                "Name": run.name,
+                "Desc": run.desc,
+                "CreatedTime": run.created_time,
+                "Path": run.run_dir,
+                "Type": run.job_type,
             }
         )
         record_file_path = _get_record_file_path_from_proj(run.belonging_exp.belonging_proj)
@@ -243,12 +242,11 @@ class RunDAOJsonImpl(RunDAO):
         record_run = record["Exps"][exp_id]["Runs"][run_id]
         run = Run()
         run.global_id = run_id
-        run.name = record_run["Run Name"]
-        run.desc = record_run["Run Desc"]
-        run.created_time = record_run["Created Time"]
-        run.run_dir = record_run["Storage Path"]
-        run.job_type = record_run["Job Type"]
-        run.run_summary = record_run["Run Summary"]
+        run.name = record_run["Name"]
+        run.desc = record_run["Desc"]
+        run.created_time = record_run["CreatedTime"]
+        run.run_dir = record_run["Path"]
+        run.job_type = record_run["Type"]
         run.belonging_exp = ExperimentDAOJsonImpl.get_exp_from_id(output_dir, proj_id, exp_id)
         return run
 
@@ -271,10 +269,10 @@ class RunDAOJsonImpl(RunDAO):
             runs.append(
                 OrderedDict(
                     {
-                        "Run ID": run_id,
-                        "Run Name": run["Run Name"],
-                        "Run Desc": run["Run Desc"],
-                        "Created Time": run["Created Time"],
+                        "ID": run_id,
+                        "Name": run["Name"],
+                        "Desc": run["Desc"],
+                        "CreatedTime": run["CreatedTime"],
                     }
                 )
             )
