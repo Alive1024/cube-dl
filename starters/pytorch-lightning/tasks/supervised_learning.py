@@ -61,8 +61,7 @@ class SupervisedLearningTask(TaskBase):
                 # Currently (2023-12), PyTorch-Lightning doesn't support log non-scalar metric value, which brings
                 # inconvenience if we provide some class-wise metrics, a workaround is to "unfold" the metric result.
                 if isinstance(metric_values, dict):
-                    for key, val in metric_values.items():
-                        eval_results[key] = val
+                    eval_results.update(metric_values)
                 # For scalar
                 else:
                     # Log the metric object directly and let PyTorch-Lightning take care of when to reset the metric
@@ -71,8 +70,7 @@ class SupervisedLearningTask(TaskBase):
 
             if isinstance(metric, MetricCollection):
                 metric_values = metric(pred, target)  # `MetricCollection` returns a flat dict
-                for key, val in metric_values.items():
-                    eval_results[key] = val
+                eval_results.update(metric_values)
 
             # Otherwise, log the result value.
             else:
