@@ -121,7 +121,6 @@ class ProjectDAOJsonImpl(ProjectDAO):
 
     def remove_entry(self, proj: Project, **kwargs):
         shutil.rmtree(proj.proj_dir)
-        os.remove(_get_record_file_path_from_proj(proj))
 
 
 class ExperimentDAOJsonImpl(ExperimentDAO):
