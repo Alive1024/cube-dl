@@ -1,0 +1,24 @@
+{
+  "ID": "wr",
+  "Name": "DummyProj",
+  "Desc": "",
+  "CreatedTime": "2024-03-18 18:55:10",
+  "Path": "/Users/yihaozuo/Zyh-Coding-Projects/Personal/Cube/starters/pytorch-lightning/outputs/proj_wr_DummyProj",
+  "Exps": {
+    "ev": {
+      "Name": "DummyExp",
+      "Desc": "",
+      "CreatedTime": "2024-03-18 18:55:10",
+      "Path": "/Users/yihaozuo/Zyh-Coding-Projects/Personal/Cube/starters/pytorch-lightning/outputs/proj_wr_DummyProj/exp_ev_DummyExp",
+      "Runs": {
+        "1pa3": {
+          "Name": "Check",
+          "Desc": "",
+          "CreatedTime": "2024-03-18 19:15:30",
+          "Path": "/Users/yihaozuo/Zyh-Coding-Projects/Personal/Cube/starters/pytorch-lightning/outputs/proj_wr_DummyProj/exp_ev_DummyExp/run_1pa3_Check",
+          "Type": "fit"
+        }
+      }
+    }
+  }
+}
