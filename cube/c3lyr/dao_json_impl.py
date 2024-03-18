@@ -22,6 +22,7 @@ def _json_read_from_path(json_path) -> dict:
 def _json_dump_to_file(obj, json_path):
     with open(json_path, "w") as f:
         json.dump(obj, f, indent=2, ensure_ascii=False)
+        f.write("\n")
 
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
