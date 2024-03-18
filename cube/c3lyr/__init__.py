@@ -58,6 +58,9 @@ class EntityFactory:
         exp.belonging_proj = DAOFactory.get_proj_dao().get_proj_from_id(output_dir, proj_id)
         exp.exp_dir = osp.abspath(osp.join(exp.belonging_proj.proj_dir, exp.dirname))
         _make_dir(exp.exp_dir, exp.ENTITY_TYPE)
+        # Create an empty ".gitkeep" within the exp directory
+        with open(osp.join(exp.exp_dir, ".gitkeep"), "w") as f:
+            f.write("")
         return exp
 
     @staticmethod
