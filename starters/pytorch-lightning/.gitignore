@@ -15,5 +15,5 @@ data/
 !data/.gitkeep
 
 # Projects' outputs
-outputs/
-!outputs/**.json
+outputs/*
+!outputs/**/*.json
