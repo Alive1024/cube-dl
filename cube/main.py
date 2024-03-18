@@ -584,7 +584,7 @@ def main():
             os.makedirs(output_dir)
             # Add a .gitignore to allow git to track project record files and .gitkeep in exp directories
             with open(osp.join(output_dir, ".gitignore"), "w") as f:
-                f.write("*\n!*/\n!*.json\n!.gitkeep\n")
+                f.write("*\n!*/\n!.gitignore\n!*.json\n!.gitkeep\n")
 
         args = _parse_args()
         args.func(args)
