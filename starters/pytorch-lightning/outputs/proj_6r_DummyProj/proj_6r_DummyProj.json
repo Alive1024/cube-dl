@@ -3,19 +3,19 @@
   "Name": "DummyProj",
   "Desc": "This is a dummy proj for demonstration.",
   "CreatedTime": "2024-03-18 22:11:15",
-  "Path": "/Users/yihaozuo/Zyh-Coding-Projects/Personal/Cube/starters/pytorch-lightning/outputs/proj_6r_DummyProj",
+  "Path": "./outputs/proj_6r_DummyProj",
   "Exps": {
     "1b": {
       "Name": "DummyExp",
       "Desc": "This is a dummy exp for demonstration.",
       "CreatedTime": "2024-03-18 22:11:15",
-      "Path": "/Users/yihaozuo/Zyh-Coding-Projects/Personal/Cube/starters/pytorch-lightning/outputs/proj_6r_DummyProj/exp_1b_DummyExp",
+      "Path": "./outputs/proj_6r_DummyProj/exp_1b_DummyExp",
       "Runs": {
         "z2hi": {
           "Name": "Check",
           "Desc": "",
           "CreatedTime": "2024-03-18 22:12:49",
-          "Path": "/Users/yihaozuo/Zyh-Coding-Projects/Personal/Cube/starters/pytorch-lightning/outputs/proj_6r_DummyProj/exp_1b_DummyExp/run_z2hi_Check",
+          "Path": "./outputs/proj_6r_DummyProj/exp_1b_DummyExp/run_z2hi_Check",
           "Type": "fit"
         }
       }

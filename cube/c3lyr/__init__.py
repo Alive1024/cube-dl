@@ -47,7 +47,7 @@ class EntityFactory:
     def get_proj_instance(name: str, desc: str, output_dir: str) -> Project:
         proj = Project()
         EntityFactory._set_common(proj, name, desc, global_id=generate_id(2))
-        proj.proj_dir = osp.abspath(osp.join(output_dir, proj.dirname))
+        proj.proj_dir = osp.join(output_dir, proj.dirname)
         _make_dir(proj.proj_dir, proj.ENTITY_TYPE)
         return proj
 
@@ -56,7 +56,7 @@ class EntityFactory:
         exp = Experiment()
         EntityFactory._set_common(exp, name, desc, global_id=generate_id(2))
         exp.belonging_proj = DAOFactory.get_proj_dao().get_proj_from_id(output_dir, proj_id)
-        exp.exp_dir = osp.abspath(osp.join(exp.belonging_proj.proj_dir, exp.dirname))
+        exp.exp_dir = osp.join(exp.belonging_proj.proj_dir, exp.dirname)
         _make_dir(exp.exp_dir, exp.ENTITY_TYPE)
         # Create an empty ".gitkeep" within the exp directory
         with open(osp.join(exp.exp_dir, ".gitkeep"), "w") as f:
@@ -68,7 +68,7 @@ class EntityFactory:
         run = Run()
         EntityFactory._set_common(run, name, desc, global_id=generate_id(4))
         run.belonging_exp = DAOFactory.get_exp_dao().get_exp_from_id(output_dir, proj_id, exp_id)
-        run.run_dir = osp.abspath(osp.join(run.belonging_exp.exp_dir, run.dirname))
+        run.run_dir = osp.join(run.belonging_exp.exp_dir, run.dirname)
         run.job_type = job_type
         _make_dir(run.run_dir, run.ENTITY_TYPE)
         return run
