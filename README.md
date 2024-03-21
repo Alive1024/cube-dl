@@ -17,7 +17,8 @@ Languages: English | [简体中文](./docs/README_zh-CN.md)
 pip install -U cube-dl
 ```
 
-**Install from wheel file (latest)**：
+**Install from wheel file (latest)**:
+
 Enter the [Actions](https://github.com/Alive1024/cube-dl/actions) page of this project, select the latest workflow run from the actions corresponding to "Packaging Wheel", download the compressed package of the wheel file from Artifacts, extract it, and install it using pip:
 
 ```shell
