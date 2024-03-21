@@ -11,9 +11,9 @@ from typing import Any, Literal
 
 from torch.nn import Module
 
-from cube.c3lyr import Run
-from cube.callback import CubeCallback, CubeCallbackList
-from cube.core import CubeDataModule, CubeRunner, CubeTaskModule
+from cube_dl.c3lyr import Run
+from cube_dl.callback import CubeCallback, CubeCallbackList
+from cube_dl.core import CubeDataModule, CubeRunner, CubeTaskModule
 
 ARCHIVED_CONFIG_FORMAT = Literal["single-py", "zip", "dir"] | bool
 RUNNER_GETTER_T = Callable[[], CubeRunner]

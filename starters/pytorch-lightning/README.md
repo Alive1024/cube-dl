@@ -1,1 +1,1 @@
-This is a starter project based on [Cube](https://github.com/Alive1024/Cube).
+A [cube-dl](https://github.com/Alive1024/cube-dl) starter based on [PyTorch-Lightning](https://lightning.ai/pytorch-lightning).

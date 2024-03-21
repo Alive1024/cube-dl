@@ -12,10 +12,10 @@
       "Path": "./outputs/proj_6r_DummyProj/exp_1b_DummyExp",
       "Runs": {
         "z2hi": {
-          "Name": "Check",
-          "Desc": "",
+          "Name": "DummyRun",
+          "Desc": "A dummy run for demonstration.",
           "CreatedTime": "2024-03-18 22:12:49",
-          "Path": "./outputs/proj_6r_DummyProj/exp_1b_DummyExp/run_z2hi_Check",
+          "Path": "./outputs/proj_6r_DummyProj/exp_1b_DummyExp/run_z2hi_fit_DummyRun",
           "Type": "fit"
         }
       }

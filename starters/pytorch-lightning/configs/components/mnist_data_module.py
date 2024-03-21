@@ -1,4 +1,4 @@
-from cube.config_sys import cube_data_module, shared_config
+from cube_dl.config_sys import cube_data_module, shared_config
 from torchvision import transforms as F  # noqa: N812
 from torchvision.datasets import MNIST
 

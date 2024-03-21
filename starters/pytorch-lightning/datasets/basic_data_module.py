@@ -1,7 +1,7 @@
 import os
 
 import torch
-from cube.core import CubeDataModule
+from cube_dl.core import CubeDataModule
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset, random_split
 

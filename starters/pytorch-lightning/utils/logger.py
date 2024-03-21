@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 from functools import partial
 
-from cube.c3lyr import Run
+from cube_dl.c3lyr import Run
 from pytorch_lightning.loggers import (
     CSVLogger,
     TensorBoardLogger,

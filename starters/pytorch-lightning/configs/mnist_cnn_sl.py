@@ -1,7 +1,7 @@
 import os.path as osp
 
 import pytorch_lightning as pl
-from cube.config_sys import (
+from cube_dl.config_sys import (
     RootConfig,
     cube_model,
     cube_root_config,
@@ -9,7 +9,7 @@ from cube.config_sys import (
     cube_task_module,
     shared_config,
 )
-from cube.core import CUBE_CONTEXT
+from cube_dl.core import CUBE_CONTEXT
 from pytorch_lightning.callbacks import ModelCheckpoint, RichProgressBar
 from torch import nn, optim
 from torchmetrics import ClasswiseWrapper, MetricCollection

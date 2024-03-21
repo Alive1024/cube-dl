@@ -117,6 +117,17 @@ class Run(_EntityBase):
         self._is_resuming = None
 
     @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        self._name = value
+        # Update dirname after name is assigned
+        # Insert the job type for `Run`
+        self._dirname = f"{self.ENTITY_TYPE}_{self.global_id}_{self._job_type}_{self.name}"
+
+    @property
     def belonging_exp(self) -> Experiment:
         return self._belonging_exp
 

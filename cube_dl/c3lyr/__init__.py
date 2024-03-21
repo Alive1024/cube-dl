@@ -1,5 +1,5 @@
-"""
-"c3lyr" stands for "Core Triple Layers".
+"""`c3lyr` stands for "Core Triple Layers".
+
 This package implements the triple layer concepts: project, experiment and run.
 """
 
@@ -66,10 +66,10 @@ class EntityFactory:
     @staticmethod
     def get_run_instance(name: str, desc: str, output_dir: str, proj_id: str, exp_id: str, job_type: str) -> Run:
         run = Run()
+        run.job_type = job_type  # set `job_type` before setting `name` (as `dirname` needs `job_type`)
         EntityFactory._set_common(run, name, desc, global_id=generate_id(4))
         run.belonging_exp = DAOFactory.get_exp_dao().get_exp_from_id(output_dir, proj_id, exp_id)
         run.run_dir = osp.join(run.belonging_exp.exp_dir, run.dirname)
-        run.job_type = job_type
         _make_dir(run.run_dir, run.ENTITY_TYPE)
         return run
 

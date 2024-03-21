@@ -5,8 +5,8 @@ import re
 import shutil
 import warnings
 
-from cube.callback import CubeCallback
-from cube.core import CUBE_CONTEXT
+from cube_dl.callback import CubeCallback
+from cube_dl.core import CUBE_CONTEXT
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 
 

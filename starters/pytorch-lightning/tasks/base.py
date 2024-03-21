@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 import pytorch_lightning as pl
 import torch
-from cube.core import CubeTaskModule
+from cube_dl.core import CubeTaskModule
 from torch import nn
 from torchmetrics import Metric, MetricCollection
 
