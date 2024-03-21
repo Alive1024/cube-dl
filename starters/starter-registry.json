@@ -1,7 +1,7 @@
 [
   {
     "name": "pytorch-lightning",
-    "desc": "A cube-dl starter based on [PyTorch-Lightning](https://lightning.ai/pytorch-lightning).",
+    "desc": "A cube-dl starter based on [PyTorch-Lightning](https://github.com/Lightning-AI/pytorch-lightning).",
     "owner": "Alive1024",
     "repo": "cube-dl",
     "path": "starters/pytorch-lightning"

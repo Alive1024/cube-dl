@@ -67,13 +67,13 @@ pip install .
 
 # 1. 简介
 
-cube-dl 是一个用于管理和训练深度学习模型的高层次 Python 库，用于更省心、省力地管理大量的深度学习配置项和实验，使之井井有条。
+**cube-dl** 是一个用于管理和训练深度学习模型的高层次 Python 库，用于更省心、省力地管理大量的深度学习配置项和实验，使之井井有条。
 
 ## 1.1 动机
 
-如我们所见，开源社区中已有相当多不同层次的、深度学习相关的开源库。例如，PyTorch 提供了强大的深度学习建模能力，PyTorch-Lightning 则对 PyTorch 进行了抽象和包装，省去了编写大量样板代码的麻烦，但即使有了这些，在训练深度学习模型时仍然可能因为大量的可配置项、实验等陷入混乱，使得研究者/开发者不得不将大量的精力和时间花费在整理和比较实验结果上，而非方法本身。另外，在进行研究的过程中不可避免地需要使用其他人的开源算法，由于每个人的代码习惯不同，开源算法具有不尽相同的组织结构，部分仓库服务于特定的方法或数据集等，没有经过良好的顶层设计，在使用这些代码进行自定义实验时是相当痛苦的。再者，当想将一些来源不同的算法聚合在一起时，需要一个通用性较强的代码结构。
+如我们所见，开源社区中已有相当多不同层次的、深度学习相关库。例如，[PyTorch](https://github.com/pytorch/pytorch) 提供了强大的深度学习建模能力，[PyTorch-Lightning](https://github.com/Lightning-AI/pytorch-lightning) 则对 PyTorch 进行了抽象和包装，省去了编写大量样板代码的麻烦，但即使有了这些，在训练深度学习模型时仍然可能因为大量的可配置项、实验等陷入混乱，使得研究者/开发者不得不将大量的精力和时间花费在整理和比较实验结果上，而非方法本身。另外，在进行研究的过程中不可避免地需要使用其他人的开源算法，由于每个人的代码习惯不同，开源算法具有不尽相同的组织结构，部分仓库服务于特定的方法或数据集等，没有经过良好的顶层设计，在使用这些代码进行自定义实验时是相当痛苦的。再者，当想将一些来源不同的算法聚合在一起时，需要一个通用性较强的代码结构。
 
-cube-dl 因此诞生，通过在配置和实验的管理方式等方面施加一些规则约束来使得深度学习项目更易于管理，并在抽象与灵活之间找到一个良好的平衡点。
+**cube-dl** 因此诞生，通过在配置和实验的管理方式等方面施加一些规则约束来使得深度学习项目更易于管理，并在抽象与灵活之间找到一个良好的平衡点。
 
 ## 1.2 主要特点
 
@@ -113,12 +113,12 @@ cube-dl 尽可能地遵循了以下原则：
 - 量化模型有效性的**目标函数**
 - 调节模型参数以优化目标函数的**优化算法**
 
-基于以上分类和组件化的思想，本模板将深度学习项目的相关组件重新组织为四部分：
+基于以上分类和组件化的思想，cube-dl 将深度学习项目的相关组件重新组织为四部分：
 
 - **Model**: 即要训练的模型；
-- **Task Module**: 对某种深度学习任务的过程的定义，对应的是某种训练范式，例如最常见的全监督式学习。Task Module 可进一步细分为若干个组件，例如损失函数、优化算法、学习率调节器、验证及测试时使用的度量指标等。同时，要训练的模型作为 task module 的初始化参数指定；
-- **Data Module**: 与数据相关的，对应于 PyTorch 的 Dataset 和 DataLoader 的组合，类似于 PyTorch-Lightning 的 [LightningDataModule](https://lightning.ai/docs/pytorch/stable/data/datamodule.html)，但用法略有不同，这里的 data module 不特定于某个数据集，具体的数据集类作为 data module 的初始化参数传入；
-- **Runner**: 包含了执行模型训练、验证、测试、推理等过程的工程层面的代码。
+- **Task Module**: 对某种深度学习任务的过程的定义，对应的是某种训练范式，例如最常见的全监督式学习。Task Module 可进一步细分为若干个组件，例如损失函数、优化算法、学习率调节器、验证及测试时使用的度量指标等。同时，要训练的模型作为 Task Module 的初始化参数指定；
+- **Data Module**: 与数据相关的，对应于 PyTorch 的 Dataset 和 DataLoader 的组合，类似于 PyTorch-Lightning 的 [LightningDataModule](https://lightning.ai/docs/pytorch/stable/data/datamodule.html)，但用法略有不同，这里的 Data Module 不特定于某个数据集，具体的数据集类作为 Data Module 的初始化参数传入；
+- **Runner**: 执行模型训练、验证、测试、推理等过程的工程层面的代码。
 
 ```text
                         ┌────────────────┐
@@ -151,13 +151,13 @@ cube-dl 尽可能地遵循了以下原则：
 
 ### 2.1.2 组织实验的三层结构
 
-为了更有条理地组织所有实验，本模板强制性地要求用户使用“三层结构”：
+为了更有条理地组织所有实验，cube-dl 强制性地要求用户使用“三层结构”：
 
 - **Project** (后文简称 **proj**)：包含多个 exps；
 - **Experiment** (后文简称 **exp**)：一组具有共同主题的 runs，每个 exp 必须与某个 proj 相关联，例如 “baseline”、“ablation”、“contrast”等；
 - **Run**：运行的最小原子单位，每个 run 必须隶属于某个 proj 中的某个 exp，每个 run 都具有一种 job type，指示此 run 在做什么事情。
 
-以上三种实体都具有相应的由小写字母和数组构成的随机 ID，proj 和 exp 的 ID 为 2 位；run 的 ID 为 4 位。
+以上三种实体都具有相应的由小写字母和数字构成的随机 ID，proj 和 exp 的 ID 为 2 位；run 的 ID 为 4 位。
 
 输出目录的结构将形如：
 
@@ -214,11 +214,11 @@ cube-dl 尽可能地遵循了以下原则：
 
 ## 2.2 配置系统
 
-如前所述，深度学习项目往往涉及大量的可配置参数，如何传入和记录这些参数是十分重要的。考虑到配置的本质是为实例化类提供初始化参数，本模板设计了一套全新的配置系统，编写配置文件就如同编写正常的实例化类的代码一样自然。
+如前所述，深度学习项目往往涉及大量的可配置参数，如何传入和记录这些参数是十分重要的。考虑到配置的本质是为实例化类提供初始化参数，cube-dl 设计了一套全新的配置系统，编写配置文件就如同编写正常的实例化类的代码一样自然。
 
 ### 2.2.1 配置文件
 
-在本模板中，配置文件实际上就是 `.py` 源代码文件，主要用于定义如何实例化相应的对象，编写配置文件即是一个选择(将需要使用的`import`进来)并定义如何实例化的过程。例如，下面是一个配置 runner 的代码片段：
+在 cube-dl 中，配置文件实际上就是 `.py` 源代码文件，主要用于定义如何实例化相应的对象，编写配置文件即是一个选择(将需要使用的`import`进来)并定义如何实例化的过程。例如，下面是一个配置 runner 的代码片段：
 
 ```python
 @cube_runner
@@ -272,7 +272,7 @@ def get_fit_runner():
 
 - Root config 的 getter 函数名必须为 `get_root_config`，每个配置文件中仅能有一个，其他类型的配置项没有此限制；
 
-- `cube_ml.config_sys` 中可以导入名为 `cube_root_config`、 `cube_model`、`cube_task_module`、`cube_data_module` 和 `cube_runner` 的装饰器，强烈建议在编写 getter 函数时都使用相应的装饰器进行装饰，一方面是为了允许装饰器进行检查，另一方面是为了将来的扩展。
+- `cube_dl.config_sys` 中可以导入名为 `cube_root_config`、 `cube_model`、`cube_task_module`、`cube_data_module` 和 `cube_runner` 的装饰器，强烈建议在编写 getter 函数时都使用相应的装饰器进行装饰，一方面是为了允许装饰器进行检查，另一方面是为了将来的扩展。
 
 另外，当需要从其他配置文件中导入所需的 config components 时，建议使用相对 import 语句导入。
 
@@ -282,7 +282,7 @@ def get_fit_runner():
 
 ### 2.2.4 在不同配置文件之间共享预设值
 
-在一些场景中，一些配置值需要在不同的配置项之间扩展，例如 epochs 可能既被 task module 中的 lr scheduler 需要，又被 runner 需要。为了便于一次性全部修改、防止因遗漏而产生错误，当所有配置组件都在同一个配置文件中时，可以将需要共享的预设值定义为全局变量，但这种方式当配置组件分散在多个文件时不可行，在这种情况下，可以使用 cube-dl 提供的 `shared_config` （可从 `cube_ml.config_sys` 中导入）。在 root config getter 中进行 `set`，然后在其他需要使用时进行 `get`。
+在一些场景中，一些配置值需要在不同的配置项之间扩展，例如 epochs 可能既被 task module 中的 lr scheduler 需要，又被 runner 需要。为了便于一次性全部修改、防止因遗漏而产生错误，当所有配置组件都在同一个配置文件中时，可以将需要共享的预设值定义为全局变量，但这种方式当配置组件分散在多个文件时不可行，在这种情况下，可以使用 cube-dl 提供的 `shared_config` （可从 `cube_dl.config_sys` 中导入）。在 root config getter 中进行 `set`，然后在其他需要使用时进行 `get`。
 
 ### 2.2.5 与其他配置方式的比较
 
@@ -294,7 +294,7 @@ def get_fit_runner():
 4. **实现特定的 Config 类**：例如 [Mask_RCNN - config.py](https://github.com/matterport/Mask_RCNN/blob/master/mrcnn/config.py) 中实现了 `Config` 基类，使用时需要派生出子类并按需要覆盖部分属性的值，这种方式灵活性不足，和当前代码紧紧耦合，不适合通用的场景；
 5. **一般的 Python 源代码文件**：[OpenMMLab](https://github.com/open-mmlab) 的大部分开源库都采用了这种配置方式，例如 [mmdetection](https://github.com/open-mmlab/mmdetection)，其中的配置文件形如 [atss_r50_fpn_8xb8-amp-lsj-200e_coco.py](https://github.com/open-mmlab/mmdetection/blob/main/configs/atss/atss_r50_fpn_8xb8-amp-lsj-200e_coco.py)。虽然使用了 Python 源代码文件进行配置，但自成体系，有着特殊的规则 (例如需要使用 `_base_` 来继承)，需要付出学习成本，而且本质上是在定义若干个 `dict`，在其中定义要使用的类及其参数，这些参数以 key-value 的形式传入，同样无法充分利用 IDE 的代码提示，与文本型配置方式有着类似的弊端。并且，各种配置项作为变量在配置文件中被直接赋值，是相当松散、容易出错的。
 
-这些配置方式本质上是以各种形式传递参数，然后配置系统将使用这些参数去实例化一些类或传递到某处。而本模板中的配置方式相当于翻转了此过程，在使用时直接定义如何实例化类，配置系统将会自动记录以及归档。这样，编写配置文件的过程如同正常实例化类一样自然，几乎不需要学习如何配置，而且可以充分利用 IDE 的提示来提高编写效率，还可以加入任意的逻辑。
+这些配置方式本质上是以各种形式传递参数，然后配置系统将使用这些参数去实例化一些类或传递到某处。而 cube-dl 中的配置方式相当于翻转了此过程，在使用时直接定义如何实例化类，配置系统将会自动记录以及归档。这样，编写配置文件的过程如同正常实例化类一样自然，几乎不需要学习如何配置，而且可以充分利用 IDE 的提示来提高编写效率，还可以加入任意的逻辑。
 
 ## 2.3 Starter
 
@@ -479,7 +479,7 @@ cube test -c configs/mnist_cnn_sl.py -p 8q -e zy -n "Test" -d "Test the simple C
 示例：
 
 ```shell
-
+cube predict -c configs/mnist_cnn_sl.py -p 8q -e zy -n "Test" -d "Predict using the simple CNN." -lc "outputs/proj_8q_MNIST/exp_zy_Baseline/run_rw4q_fit_ep25-lr1e-3/checkpoints/epoch\=3-step\=1532.ckpt"
 ```
 
 ## 2.5 其他
