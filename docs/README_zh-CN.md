@@ -6,7 +6,8 @@ Languages: [English](../README.md) | 简体中文
 
 **对现有代码的进行少量更改，来管理大量的配置项和实验。**
 
-![wheels](https://github.com/Alive1024/cube-dl/actions/workflows/packaging_wheel_on_push.yml/badge.svg)
+[![Packaging Wheel](https://github.com/Alive1024/cube-dl/actions/workflows/packaging_wheel_on_push.yml/badge.svg)](https://github.com/Alive1024/cube-dl/actions/workflows/packaging_wheel_on_push.yml)
+[![Publishing to PyPI](https://github.com/Alive1024/cube-dl/actions/workflows/publishing_on_tag.yml/badge.svg)](https://github.com/Alive1024/cube-dl/actions/workflows/publishing_on_tag.yml)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 **从 PyPI 安装（稳定状态，推荐）**：

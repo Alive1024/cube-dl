@@ -7,8 +7,30 @@ Languages: English | [简体中文](./docs/README_zh-CN.md)
 **Manage tons of configurations and experiments with minimal changes to existing code.**
 
 
-![wheels](https://github.com/Alive1024/Cube/actions/workflows/packaging_wheel_on_push.yml/badge.svg)
+[![Packaging Wheel](https://github.com/Alive1024/cube-dl/actions/workflows/packaging_wheel_on_push.yml/badge.svg)](https://github.com/Alive1024/cube-dl/actions/workflows/packaging_wheel_on_push.yml)
+[![Publishing to PyPI](https://github.com/Alive1024/cube-dl/actions/workflows/publishing_on_tag.yml/badge.svg)](https://github.com/Alive1024/cube-dl/actions/workflows/publishing_on_tag.yml)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+
+**Install from PyPI (stable, recommended)**：
+
+```shell
+pip install -U cube-dl
+```
+
+**Install from wheel file (latest)**：
+Enter the [Actions](https://github.com/Alive1024/cube-dl/actions) page of this project, select the latest workflow run from the actions corresponding to "Packaging Wheel", download the compressed package of the wheel file from Artifacts, extract it, and install it using pip:
+
+```shell
+pip install xxx.whl
+```
+
+**Install from source code (latest)**：
+
+```shell
+git clone git@github.com:Alive1024/cube-dl.git
+cd cube-dl
+pip install .
+```
 
 **Table of Contents**：
 
