@@ -20,8 +20,6 @@ classifiers = ["Development Status :: 3 - Alpha",
 python = "^3.9"
 rich = "^13.5.2"
 jsonpath-ng = "^1.5.3"
-opencv-python = "^4.8.0.76"
-torch = ">=2.0.0"
 tomli = "^2.0.1"
 requests = "^2.31.0"
 
