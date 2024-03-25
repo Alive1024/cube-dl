@@ -9,8 +9,6 @@ from collections.abc import Callable, Iterable
 from functools import partial
 from typing import Any, Literal
 
-from torch.nn import Module
-
 from cube_dl.c3lyr import Run
 from cube_dl.callback import CubeCallback, CubeCallbackList
 from cube_dl.core import CubeDataModule, CubeRunner, CubeTaskModule
@@ -51,7 +49,7 @@ class RootConfig:
     def __init__(
         self,
         *,  # Compulsory keyword arguments, for better readability in config files.
-        model_getters: Callable[[], Module] | Iterable[Callable[[], Module]],
+        model_getters,
         task_module_getter: Callable[[], CubeTaskModule],
         data_module_getter: Callable[[], CubeDataModule],
         default_runner_getter: RUNNER_GETTER_T | None = None,
