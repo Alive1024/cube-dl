@@ -90,8 +90,22 @@ def start(args: Namespace):
         console = Console()
         console.print(_list_available_starters())
     else:
-        save_dir = os.getcwd() if args.dest is None else args.dest
-        print("Downloading files...")
+        if args.dest is not None:
+            if not osp.exists(args.dest):
+                os.mkdir(args.dest)
+            save_dir = args.dest
+        else:
+            save_dir = os.getcwd()
+
+        if len(os.listdir(save_dir)) != 0:
+            print(
+                get_fail_colored_str(
+                    f'The destination directory "{save_dir}" is not empty, ' "please switch another one to avoid chaos."
+                )
+            )
+            return
+
+        print(f'Downloading files to "{save_dir}"...')
         _download_github_directory(
             owner=args.owner,
             repo=args.repo,
@@ -100,7 +114,8 @@ def start(args: Namespace):
         )
         print(get_ok_green_colored_str("Downloading completed."))
 
-        if not osp.exists(osp.join(save_dir, "pyproject.toml")):
+        config_file_path = osp.join(save_dir, "pyproject.toml")
+        if not osp.exists(config_file_path):
             raise RuntimeError(
                 get_fail_colored_str(
                     "It seems like the directory downloaded is not a standard "
@@ -109,4 +124,4 @@ def start(args: Namespace):
             )
         else:
             # Trying to parse cube configs
-            parse_cube_configs()
+            parse_cube_configs(config_path=config_file_path)
