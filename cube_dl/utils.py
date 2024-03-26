@@ -28,6 +28,10 @@ def get_ok_green_colored_str(s: str) -> str:
     return Colors.OK_GREEN + s + Colors.END_C
 
 
+def get_bold_str(s: str) -> str:
+    return Colors.BOLD + s + Colors.END_C
+
+
 def parse_cube_configs(config_path: str = osp.join(os.getcwd(), "pyproject.toml")) -> dict:
     """Parse configurations from configuration file (default to pyproject.toml)."""
 

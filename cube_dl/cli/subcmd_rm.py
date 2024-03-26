@@ -43,7 +43,7 @@ def add_subparser_rm(subparsers):
         default=False,
         help="Automatic yes to all confirmation.",
     )
-    subparser.set_defaults(func=rm)
+    subparser.set_defaults(func=rm, needs_cube_env_check=True)
 
 
 def _confirm_rm(message: str = "", yes: bool = False) -> bool:

@@ -41,7 +41,7 @@ def add_subparser_new(subparsers):
         default="",
         help="(Optional) Description of the new exp.",
     )
-    subparser.set_defaults(func=new)
+    subparser.set_defaults(func=new, needs_cube_env_check=True)
 
 
 def new(args: Namespace):

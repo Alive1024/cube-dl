@@ -44,7 +44,7 @@ def add_subparser_ls(subparsers):
         nargs=2,
         help="Display all runs of the exp of the proj specified by two IDs (proj_ID exp_ID).",
     )
-    subparser.set_defaults(func=ls)
+    subparser.set_defaults(func=ls, needs_cube_env_check=True)
 
 
 def ls(args: Namespace):

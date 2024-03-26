@@ -6,6 +6,7 @@ from .subcmd_ls import add_subparser_ls
 from .subcmd_new import add_subparser_new
 from .subcmd_rm import add_subparser_rm
 from .subcmd_start import add_subparser_start
+from .subcmd_version import add_subparser_version
 from .subcmds_exec import add_subparser_exec
 
 __all__ = ["parse_args"]
@@ -21,5 +22,6 @@ def parse_args():
     add_subparser_ls(subparsers)
     add_subparser_rm(subparsers)
     add_subparser_exec(subparsers)
+    add_subparser_version(subparsers)
 
     return parser.parse_args()

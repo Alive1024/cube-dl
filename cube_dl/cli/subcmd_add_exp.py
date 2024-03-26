@@ -30,7 +30,7 @@ def add_subparser_add_exp(subparsers):
         default="",
         help="(Optional) Description of the new exp.",
     )
-    subparser.set_defaults(func=add_exp)
+    subparser.set_defaults(func=add_exp, needs_cube_env_check=True)
 
 
 def add_exp(args: Namespace):

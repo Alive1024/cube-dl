@@ -42,7 +42,7 @@ def add_subparser_start(subparsers):
         help="Destination directory to store the starter. Default to the current working directory.",
     )
 
-    subparser.set_defaults(func=start)
+    subparser.set_defaults(func=start, needs_cube_env_check=False)
 
 
 def _list_available_starters() -> Table:

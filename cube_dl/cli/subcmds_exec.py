@@ -53,7 +53,7 @@ def add_subparser_exec(subparsers):
         parents=[exec_parent_parser],
         help="Execute a fit run on the dataset's fit split.",
     )
-    parser_fit.set_defaults(func=partial(execute, job_type="fit"))
+    parser_fit.set_defaults(func=partial(execute, job_type="fit"), needs_cube_env_check=True)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>> Subcommand: resume-fit >>>>>>>>>>>
@@ -74,7 +74,7 @@ def add_subparser_exec(subparsers):
         required=True,
         help="File path to the checkpoint where resumes.",
     )
-    parser_resume_fit.set_defaults(func=partial(execute, job_type="resume-fit"))
+    parser_resume_fit.set_defaults(func=partial(execute, job_type="resume-fit"), needs_cube_env_check=True)
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
     # >>>>>>>>>>>>>>>>>>>>>> Subcommands: validate, test and predict >>>>>>>>>>>>>>>>>>>>>>
@@ -95,7 +95,7 @@ def add_subparser_exec(subparsers):
         parents=[exec_parent_parser, validate_test_predict_parent_parser],
         help="Execute a validate run on the dataset's validate split.",
     )
-    parser_validate.set_defaults(func=partial(execute, job_type="validate"))
+    parser_validate.set_defaults(func=partial(execute, job_type="validate"), needs_cube_env_check=True)
 
     # >>>>>>>>>>> Subcommand: test >>>>>>>>>>>
     parser_test = subparsers.add_parser(
@@ -103,7 +103,7 @@ def add_subparser_exec(subparsers):
         parents=[exec_parent_parser, validate_test_predict_parent_parser],
         help="Execute a test run on the dataset's test split.",
     )
-    parser_test.set_defaults(func=partial(execute, job_type="test"))
+    parser_test.set_defaults(func=partial(execute, job_type="test"), needs_cube_env_check=True)
 
     # >>>>>>>>>>> Subcommand: predict >>>>>>>>>>>
     parser_predict = subparsers.add_parser(
@@ -111,7 +111,7 @@ def add_subparser_exec(subparsers):
         parents=[exec_parent_parser, validate_test_predict_parent_parser],
         help="Execute a predict run.",
     )
-    parser_predict.set_defaults(func=partial(execute, job_type="predict"))
+    parser_predict.set_defaults(func=partial(execute, job_type="predict"), needs_cube_env_check=True)
 
 
 def execute(args: Namespace, job_type: JOB_TYPES_T):  # noqa: C901

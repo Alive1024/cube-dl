@@ -5,7 +5,6 @@ import sys
 from cube_dl import CUBE_CONFIGS
 from cube_dl.c3lyr import remove_run
 from cube_dl.cli import parse_args
-from cube_dl.cli.subcmd_start import start
 from cube_dl.utils import get_warning_colored_str, parse_cube_configs
 
 # Add current working directory to PYTHONPATH  # noqa
@@ -16,7 +15,7 @@ def main():
     output_dir = None
     try:
         args = parse_args()
-        if args.func == start:
+        if not args.needs_cube_env_check:
             args.func(args)
         elif not osp.exists(osp.join(os.getcwd(), "pyproject.toml")):
             print(
