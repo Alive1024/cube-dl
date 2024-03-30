@@ -15,6 +15,12 @@ def main():
     output_dir = None
     try:
         args = parse_args()
+
+        # Executing `cube` without any argument
+        if not hasattr(args, "func"):
+            print("cube-dl: https://github.com/Alive1024/cube-dl")
+            return
+
         if not args.needs_cube_env_check:
             args.func(args)
         elif not osp.exists(osp.join(os.getcwd(), "pyproject.toml")):
