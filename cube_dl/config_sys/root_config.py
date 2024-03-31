@@ -50,7 +50,7 @@ class RootConfig:
         self,
         *,  # Compulsory keyword arguments, for better readability in config files.
         model_getters,
-        task_module_getter: Callable[[], CubeTaskModule],
+        task_module_getter: Callable[[Any], CubeTaskModule],
         data_module_getter: Callable[[], CubeDataModule],
         default_runner_getter: RUNNER_GETTER_T | None = None,
         fit_runner_getter: RUNNER_GETTER_T | None = None,
@@ -118,9 +118,13 @@ class RootConfig:
         self.callbacks: CubeCallbackList = CubeCallbackList(callbacks)
 
     # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Methods for Setting up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-    def setup_task_data_modules(self):
-        """Instantiate the task/data modules."""
-        self.task_module = self.task_module_getter()
+    def setup_model_task_data(self):
+        model = []
+        for model_getter in self.model_getters:
+            model.append(model_getter())
+
+        # Instantiate the task/data modules.
+        self.task_module = self.task_module_getter(model[0] if len(model) == 1 else model)
         self.data_module = self.data_module_getter()
 
     def setup_runners(self, run: Run):  # noqa: C901

@@ -148,8 +148,8 @@ def execute(args: Namespace, job_type: JOB_TYPES_T):  # noqa: C901
 
     CUBE_CONTEXT["run"] = run
 
-    # Set up the task module and the data module.
-    root_config.setup_task_data_modules()
+    # Set up the model, task module and data module.
+    root_config.setup_model_task_data()
     # Set up the trainer(s) for the current run.
     root_config.setup_runners(run=run)
 

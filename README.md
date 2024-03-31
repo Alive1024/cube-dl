@@ -251,14 +251,16 @@ Corresponding to the four core components described earlier, there are four main
 The relationship between the five configuration items is as follows:
 
 ```text
-                                  ┌───────Components───────┐
+                                  ┌────────────────────────┐
+                                  │       Components       │
                                   │     ┌────────────┐     │
-                                  │ ┌──▶│  Model(s)  │     │
-                                  │ │   └────────────┘     │
+                                  │ ┌──▶│  Model(s)  │──┐  │
+                                  │ │   └────────────┘  │  │
+                                  │ │                   │  │
+                  ┌─────────────┐ │ │   ┌────────────┐  │  │
+                  │ Root Config │─┼─┼──▶│Task Module │◀─┘  │
+                  └─────────────┘ │ │   └────────────┘     │
                                   │ │   ┌────────────┐     │
-                  ┌─────────────┐ │ ├──▶│Task Module │     │
-                  │ Root Config │─┼─┤   └────────────┘     │
-                  └─────────────┘ │ │   ┌────────────┐     │
                                   │ ├──▶│Data Module │     │
                                   │ │   └────────────┘     │
                                   │ │   ┌────────────┐     │
@@ -271,6 +273,7 @@ For some rules regarding configuration files:
 
 - For better readability, keyword parameters must be used when initializing `RootConfig` in the configuration file (it is recommended to force the use of keyword parameters when writing task/data modules, following this rule);
 - The getter function name of Root config must be `get_root_config`, and there can only be one in each configuration file. Other types of configuration items do not have this restriction;
+- The getter function of task module must have a parameter named `model`, which corresponds to the `model_getters` passed to the root config. This parameter is used to pass the model object, which is needed in optimizer or other configration item of task module. When a list (means multiple models) is passed as `model_getters`, the parameter `model` will be also a list.
 - Decorators named  `cube_root_config`, `cube_model`, `cube_task_module`, `cube_data_module` and `cube_runner` can be imported into `cube_dl.config_sys`. It is strongly recommended to use the corresponding decorators when writing getter functions, on the one hand to allow the decorators to check, and on the other hand to expand in the future.
 
 Additionally, it is recommended to use relative import statements when importing the required config components from other configuration files.

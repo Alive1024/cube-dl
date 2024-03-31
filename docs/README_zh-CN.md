@@ -251,14 +251,16 @@ def get_fit_runner():
 五种配置项之间的关系如下：
 
 ```text
-                                  ┌───────Components───────┐
+                                  ┌────────────────────────┐
+                                  │       Components       │
                                   │     ┌────────────┐     │
-                                  │ ┌──▶│  Model(s)  │     │
-                                  │ │   └────────────┘     │
+                                  │ ┌──▶│  Model(s)  │──┐  │
+                                  │ │   └────────────┘  │  │
+                                  │ │                   │  │
+                  ┌─────────────┐ │ │   ┌────────────┐  │  │
+                  │ Root Config │─┼─┼──▶│Task Module │◀─┘  │
+                  └─────────────┘ │ │   └────────────┘     │
                                   │ │   ┌────────────┐     │
-                  ┌─────────────┐ │ ├──▶│Task Module │     │
-                  │ Root Config │─┼─┤   └────────────┘     │
-                  └─────────────┘ │ │   ┌────────────┐     │
                                   │ ├──▶│Data Module │     │
                                   │ │   └────────────┘     │
                                   │ │   ┌────────────┐     │
@@ -272,6 +274,8 @@ def get_fit_runner():
 - 为了更好的可读性，在配置文件中初始化 `RootConfig` 时必须使用关键字参数 (推荐在编写 task/data modules 时也遵循此规则，强制使用关键字参数)；
 
 - Root config 的 getter 函数名必须为 `get_root_config`，每个配置文件中仅能有一个，其他类型的配置项没有此限制；
+
+- Task module 的 getter 函数必须有一个名为 `model` 的参数，对应于传给 root config 的 `model_getters`， 此参数用于传入模型对象，这在 task module 中配置的优化器等配置项中都需要用到。当传给 `model_getters` 的是一个列表 (表示多个模型) 时，`model` 参数也将是一个列表。
 
 - `cube_dl.config_sys` 中可以导入名为 `cube_root_config`、 `cube_model`、`cube_task_module`、`cube_data_module` 和 `cube_runner` 的装饰器，强烈建议在编写 getter 函数时都使用相应的装饰器进行装饰，一方面是为了允许装饰器进行检查，另一方面是为了将来的扩展。
 

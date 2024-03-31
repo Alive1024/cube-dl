@@ -1,5 +1,6 @@
 """Decorators for getters in config files."""
 
+import inspect
 from collections.abc import Callable
 
 from .root_config import RootConfig
@@ -21,7 +22,12 @@ def cube_model(getter_func: Callable):
 
 
 def cube_task_module(getter_func: Callable):
-    """Do nothing at present, defined for symmetry and future extension."""
+    param_names = inspect.signature(getter_func).parameters.keys()
+    if "model" not in param_names:
+        raise RuntimeError(
+            "The task module must have a parameter named `model`, e.g.\n"
+            "@cube_task_module\ndef get_task_module(model):\n\t..."
+        )
     return getter_func
 
 

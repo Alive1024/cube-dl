@@ -30,8 +30,7 @@ def get_model() -> nn.Module:
 
 
 @cube_task_module
-def get_task_module():
-    model = get_model()
+def get_task_module(model: nn.Module | list[nn.Module]):
     optimizer = optim.SGD(
         model.parameters(),
         lr=shared_config.get("lr_bs32") / 32 * shared_config.get("batch_size"),

@@ -11,6 +11,7 @@ def get_mnist_data_module():
         root="data",
         train=False,
         transform=F.Compose([F.ToTensor(), F.Normalize((0.1307,), (0.3081,))]),
+        download=True,
     )
     return BasicDataModule(
         default_batch_size=shared_config.get("batch_size"),
@@ -18,6 +19,7 @@ def get_mnist_data_module():
             root="data",
             train=True,
             transform=F.Compose([F.ToTensor(), F.Normalize((0.1307,), (0.3081,))]),
+            download=True,
         ),
         dataset_val=eval_dataset,
         dataset_test=eval_dataset,
