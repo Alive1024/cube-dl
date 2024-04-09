@@ -97,10 +97,15 @@ def start(args: Namespace):
         else:
             save_dir = os.getcwd()
 
-        if len(os.listdir(save_dir)) != 0:
+        # Check non-hidden file(s)
+        non_hidden_file_cnt = 0
+        for fn in os.listdir(save_dir):
+            if not fn.startswith("."):
+                non_hidden_file_cnt += 1
+        if non_hidden_file_cnt != 0:
             print(
                 get_fail_colored_str(
-                    f'The destination directory "{save_dir}" is not empty, ' "please switch another one to avoid chaos."
+                    f'The destination directory "{save_dir}" is not empty, please switch another one to avoid chaos.'
                 )
             )
             return
