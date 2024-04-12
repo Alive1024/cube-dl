@@ -4,12 +4,12 @@ import os
 from argparse import Namespace
 from functools import partial
 from typing import Literal
-from warnings import warn
 
 from cube_dl import CUBE_CONFIGS
 from cube_dl.c3lyr import DAOFactory, EntityFactory, dump_run, load_run
 from cube_dl.config_sys import get_root_config_instance
 from cube_dl.core import CUBE_CONTEXT
+from cube_dl.utils import get_warning_colored_str
 
 JOB_TYPES_T = Literal["fit", "resume-fit", "validate", "test", "predict"]
 
@@ -85,6 +85,7 @@ def add_subparser_exec(subparsers):
         "--loaded-ckpt",
         "--loaded_ckpt",
         type=str,
+        required=True,
         help='File path of the model checkpoint to be loaded. Use an empty string "" to explicitly indicate '
         "you are going to conduct validate/test/predict using the initialized model without "
         "loading any weights).",
@@ -173,9 +174,11 @@ def execute(args: Namespace, job_type: JOB_TYPES_T):  # noqa: C901
             loaded_task_module = root_config.task_module.load_checkpoint(args.loaded_ckpt)
             root_config.task_module = loaded_task_module  # update the task module
         else:
-            warn(
-                'The argument "-lc" is empty, you are going to conduct validate/test/predict using the '
-                "initialized model without loading any weights)."
+            print(
+                get_warning_colored_str(
+                    "The argument `-lc` is empty, you are going to conduct validate/test/predict using the "
+                    "initialized model without loading any weights)."
+                )
             )
 
         run_dao.set_extra_data(run, loaded_ckpt=args.loaded_ckpt)  # save the loaded ckpt info
