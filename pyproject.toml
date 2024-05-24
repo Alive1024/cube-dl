@@ -5,12 +5,12 @@ description = '"The last stop" for training your deep learning models. Manage to
 keywords = ["python", "data-science", "machine-learning", "deep-learning", "python3", "pytorch", "pytorch-lightning"]
 authors = ["Alive1024 <2431945058@qq.com>"]
 readme = "README.md"
-license = {file = "LICENSE"}
+license = "GPL-3.0-or-later"
 classifiers = ["Development Status :: 3 - Alpha",
                "Programming Language :: Python :: 3",
-               "Programming Language :: Python :: 3.9",
                "Programming Language :: Python :: 3.10",
                "Programming Language :: Python :: 3.11",
+               "Programming Language :: Python :: 3.12",
                "Programming Language :: Python :: 3 :: Only",
                "Operating System :: Unix",
                "Operating System :: MacOS",
