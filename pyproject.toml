@@ -1,11 +1,11 @@
 [tool.poetry]
 name = "cube-dl"
-version = "0.3.9"
+version = "0.3.10"
 description = '"The last stop" for training your deep learning models. Manage tons of configurations and experiments with minimal changes to existing code.'
 keywords = ["python", "data-science", "machine-learning", "deep-learning", "python3", "pytorch", "pytorch-lightning"]
 authors = ["Alive1024 <2431945058@qq.com>"]
 readme = "README.md"
-license = ""
+license = {file = "LICENSE"}
 classifiers = ["Development Status :: 3 - Alpha",
                "Programming Language :: Python :: 3",
                "Programming Language :: Python :: 3.9",
@@ -17,7 +17,7 @@ classifiers = ["Development Status :: 3 - Alpha",
             ]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 rich = "^13.5.2"
 jsonpath-ng = "^1.5.3"
 tomli = "^2.0.1"
